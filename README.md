@@ -67,3 +67,31 @@ QUOTE_TWSE_BASE_URL=http://localhost:9000 QUOTE_TPEX_BASE_URL=http://localhost:9
 
 清單頁最上面是總計：總成本是每筆（買進金額＋買進手續費）加總；收盤價取不到的持股不算進市值與盈虧，但算進總成本。
 紅色代表賺，綠色代表虧。計算程式在 `domain/PnlCalculator.java`，測試在 `src/test/java/.../PnlCalculatorTest.java`。
+
+## 手機 App 用的 API（App 1.0）
+
+路徑開頭是 `/api/v1`，格式與欄位名稱照《App 1.0 API 規格》，不要改。
+
+| 方法 | 路徑 | 成功 |
+|---|---|---|
+| GET | `/api/v1/holdings` | 200，持股陣列 |
+| GET | `/api/v1/holdings/{id}` | 200 |
+| POST | `/api/v1/holdings` | 201，請求 `{"code":"2330","lots":1,"buy_price":1000}` |
+| PUT | `/api/v1/holdings/{id}` | 200，請求 `{"lots":2,"buy_price":980.5}`（代號不能改，請求裡的 code 忽略） |
+| DELETE | `/api/v1/holdings/{id}` | 204 |
+| GET | `/api/v1/summary` | 200 |
+
+錯誤一律是 `{"error":{"code":"...","message":"..."}}`。主要錯誤：400 `VALIDATION_ERROR`、404 `NOT_FOUND`／`STOCK_NOT_FOUND`、409 `DUPLICATE_CODE`。
+官方行情連不上時新增回 503 `MARKET_UNAVAILABLE`（規格沒列這個狀態，但它不會存入資料）。
+
+### 用模擬器跑 App 1.0
+
+App 的伺服器網址填 `http://10.0.2.2:8083`（模擬器連回電腦的位址）；實體手機填電腦的區網 IP，例如 `http://192.168.1.20:8083`，並確認防火牆允許 8083。
+
+### API 測試
+
+```bash
+./mvnw test
+```
+
+`HoldingApiTest` 用 H2 記憶體資料庫與 mock 的官方行情，檢查欄位名稱、狀態碼與錯誤格式。

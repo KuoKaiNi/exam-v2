@@ -26,6 +26,11 @@ public class HoldingQueryService {
     }
 
     @Transactional(readOnly = true)
+    public HoldingView get(Long id) {
+        return repository.findById(id).map(this::toView).orElseThrow(HoldingService::notFound);
+    }
+
+    @Transactional(readOnly = true)
     public Summary summary() {
         return Summary.of(list());
     }
