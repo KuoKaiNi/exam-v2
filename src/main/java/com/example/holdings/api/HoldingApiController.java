@@ -1,11 +1,12 @@
 package com.example.holdings.api;
 
 import com.example.holdings.domain.HoldingException;
-import com.example.holdings.service.HoldingQueryService;
-import com.example.holdings.service.HoldingService;
-import com.example.holdings.service.HoldingView;
-import com.example.holdings.service.Summary;
-import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.example.holdings.domain.HoldingRules;
+import com.example.holdings.domain.PnlCalculator;
+import com.example.holdings.service.PositionQueryService;
+import com.example.holdings.service.PositionService;
+import com.example.holdings.service.PositionView;
+import com.example.holdings.service.Totals;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
@@ -22,122 +23,89 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * App 1.0 使用的 API，規格見附件《App 1.0 API 規格》，欄位與狀態碼不能改。
- * 請求內容先用 JsonNode 讀，這樣「張數 1.5」「張數 \"1\"」這類型別錯誤會回 400，不會被悄悄轉型。
+ * App 1.0 使用的 API，規格見《App 1.0 API 規格》，路徑與欄位不變。
+ * 1.0 只看「整張」的部位（股數是 1000 的倍數）；零股或部分賣出後不是整張的部位不出現在 1.0。
+ * 1.0 沒有冪等機制，重送 POST 會得到 409 DUPLICATE_CODE。
  */
 @RestController
 @RequestMapping("/api/v1")
 public class HoldingApiController {
 
-    private final HoldingService service;
-    private final HoldingQueryService queryService;
+    private final PositionService positions;
+    private final PositionQueryService queries;
     private final ObjectMapper mapper;
 
-    public HoldingApiController(HoldingService service, HoldingQueryService queryService, ObjectMapper mapper) {
-        this.service = service;
-        this.queryService = queryService;
+    public HoldingApiController(PositionService positions, PositionQueryService queries, ObjectMapper mapper) {
+        this.positions = positions;
+        this.queries = queries;
         this.mapper = mapper;
     }
 
     @GetMapping("/holdings")
     public List<HoldingDto> list() {
-        return queryService.list().stream().map(HoldingApiController::toDto).toList();
+        return queries.list().stream().filter(PositionView::wholeLotsForV1).map(HoldingApiController::toDto).toList();
     }
 
     @GetMapping("/holdings/{id}")
     public HoldingDto get(@PathVariable Long id) {
-        return toDto(queryService.get(id));
+        return toDto(visible(queries.get(id)));
     }
 
     @PostMapping("/holdings")
     public ResponseEntity<HoldingDto> create(@RequestBody String body) {
-        JsonNode json = readBody(body);
-        String code = requireText(json, "code");
-        int lots = requireLots(json);
-        BigDecimal buyPrice = requirePrice(json);
-        var created = service.create(code, lots, buyPrice);
-        return ResponseEntity.status(HttpStatus.CREATED).body(toDto(queryService.get(created.getId())));
+        JsonNode json = JsonBody.parse(mapper, body);
+        String code = JsonBody.text(json, "code");
+        int lots = lots(json);
+        BigDecimal price = JsonBody.price(json, "buy_price");
+        Long id = positions.createPosition(code, null, lots * PnlCalculator.SHARES_PER_LOT, price);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toDto(queries.get(id)));
     }
 
     @PutMapping("/holdings/{id}")
     public HoldingDto update(@PathVariable Long id, @RequestBody String body) {
-        JsonNode json = readBody(body);
+        visible(queries.get(id));
+        JsonNode json = JsonBody.parse(mapper, body);
         // 代號不能改，請求裡的 code 忽略
-        int lots = requireLots(json);
-        BigDecimal buyPrice = requirePrice(json);
-        service.update(id, lots, buyPrice);
-        return toDto(queryService.get(id));
+        int lots = lots(json);
+        BigDecimal price = JsonBody.price(json, "buy_price");
+        positions.updateSingleBuy(id, lots * PnlCalculator.SHARES_PER_LOT, price);
+        return toDto(queries.get(id));
     }
 
     @DeleteMapping("/holdings/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
+        positions.deletePosition(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/summary")
     public SummaryDto summary() {
-        Summary s = Summary.of(queryService.list());
-        return new SummaryDto(s.totalCost(), s.marketValue(), s.pnl(), s.returnPct(), s.quoteMissing());
+        List<PositionView> whole = queries.list().stream().filter(PositionView::wholeLotsForV1).toList();
+        Totals t = Totals.of(whole);
+        return new SummaryDto(t.costBasis(), t.marketValue(), t.unrealizedPnl(), t.unrealizedReturnPct(),
+                t.quoteMissing());
     }
 
-    private JsonNode readBody(String body) {
-        try {
-            // 讓小數保留成精確的 BigDecimal，不經過 double
-            JsonNode json = mapper.reader().with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS).readTree(body);
-            if (json == null || !json.isObject()) {
-                throw invalid("請求內容必須是 JSON 物件");
-            }
-            return json;
-        } catch (HoldingException e) {
-            throw e;
-        } catch (Exception e) {
-            throw invalid("請求內容不是合法的 JSON");
-        }
+    private static int lots(JsonNode json) {
+        int lots = JsonBody.integer(json, "lots", "張數必須是 1 到 999 的整數");
+        HoldingRules.checkLots(lots);
+        return lots;
     }
 
-    private static String requireText(JsonNode json, String field) {
-        JsonNode node = json.get(field);
-        if (node == null || node.isNull()) {
-            throw invalid(field + " 必填");
+    private static PositionView visible(PositionView v) {
+        if (!v.wholeLotsForV1()) {
+            throw new HoldingException(HttpStatus.NOT_FOUND, "NOT_FOUND",
+                    "這檔持股不是整張（或已部分賣出），請用 2.0 版查看");
         }
-        if (!node.isTextual()) {
-            throw invalid(field + " 必須是字串");
-        }
-        return node.asText();
+        return v;
     }
 
-    private static int requireLots(JsonNode json) {
-        JsonNode node = json.get("lots");
-        if (node == null || node.isNull()) {
-            throw invalid("lots 必填");
-        }
-        if (!node.isIntegralNumber() || !node.canConvertToInt()) {
-            throw invalid("張數必須是 1 到 999 的整數");
-        }
-        return node.intValue();
-    }
-
-    private static BigDecimal requirePrice(JsonNode json) {
-        JsonNode node = json.get("buy_price");
-        if (node == null || node.isNull()) {
-            throw invalid("buy_price 必填");
-        }
-        if (!node.isNumber()) {
-            throw invalid("買進價必須是數字");
-        }
-        return node.decimalValue();
-    }
-
-    private static HoldingException invalid(String message) {
-        return new HoldingException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", message);
-    }
-
-    static HoldingDto toDto(HoldingView h) {
+    /** 1.0 的 DTO：lots 為整張數，buy_price 為成交均價，pnl 與 return_pct 為未實現損益。 */
+    static HoldingDto toDto(PositionView v) {
         return new HoldingDto(
-                h.id(), h.code(), h.name(), h.market().name(), h.lots(), h.buyPrice(),
-                h.currentPrice(),
-                h.priceDate() == null ? null : h.priceDate().toString(),
-                h.pnl(), h.returnPct());
+                v.id(), v.code(), v.name(), v.market().name(), v.shares() / 1000, v.avgPrice(),
+                v.currentPrice(),
+                v.priceDate() == null ? null : v.priceDate().toString(),
+                v.unrealizedPnl(), v.unrealizedReturnPct());
     }
 }

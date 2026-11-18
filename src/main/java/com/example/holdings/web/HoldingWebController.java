@@ -1,122 +1,139 @@
 package com.example.holdings.web;
 
-import com.example.holdings.domain.Holding;
 import com.example.holdings.domain.HoldingException;
-import com.example.holdings.domain.HoldingRules;
-import com.example.holdings.service.HoldingQueryService;
-import com.example.holdings.service.HoldingService;
-import com.example.holdings.service.HoldingView;
-import com.example.holdings.service.Summary;
+import com.example.holdings.domain.Side;
+import com.example.holdings.service.PositionQueryService;
+import com.example.holdings.service.PositionService;
+import com.example.holdings.service.PositionView;
+import com.example.holdings.service.Totals;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-/** 持股清單與表單頁（Thymeleaf）。 */
+/** 持股網頁：清單、新增第一筆買進、明細（買進、賣出、刪除交易）。 */
 @Controller
 public class HoldingWebController {
 
-    private final HoldingService service;
-    private final HoldingQueryService queryService;
+    private final PositionService positions;
+    private final PositionQueryService queries;
 
-    public HoldingWebController(HoldingService service, HoldingQueryService queryService) {
-        this.service = service;
-        this.queryService = queryService;
+    public HoldingWebController(PositionService positions, PositionQueryService queries) {
+        this.positions = positions;
+        this.queries = queries;
     }
 
     @GetMapping("/holdings")
     public String list(Model model) {
-        fillList(model, queryService.list(), null, new HoldingForm("", "", ""));
+        List<PositionView> list = queries.list();
+        model.addAttribute("positions", list);
+        model.addAttribute("totals", Totals.of(list));
         return "holdings";
     }
 
     @PostMapping("/holdings")
     public String create(@RequestParam(defaultValue = "") String code,
-                         @RequestParam(defaultValue = "") String lots,
-                         @RequestParam(defaultValue = "") String buyPrice,
-                         Model model) {
-        HoldingForm form = new HoldingForm(code, lots, buyPrice);
+                         @RequestParam(defaultValue = "") String tradeDate,
+                         @RequestParam(defaultValue = "") String shares,
+                         @RequestParam(defaultValue = "") String price,
+                         RedirectAttributes redirect) {
         try {
-            service.create(code, parseLots(lots), parseBuyPrice(buyPrice));
+            Long id = positions.createPosition(code, parseDate(tradeDate), parseShares(shares), parsePrice(price));
+            return "redirect:/holdings/" + id;
         } catch (HoldingException e) {
-            fillList(model, queryService.list(), e.getMessage(), form);
-            return "holdings";
+            redirect.addFlashAttribute("error", e.getMessage());
+            return "redirect:/holdings";
         }
-        return "redirect:/holdings";
     }
 
-    @GetMapping("/holdings/{id}/edit")
-    public String editForm(@PathVariable Long id, Model model) {
-        Holding holding = service.get(id);
-        model.addAttribute("holding", holding);
-        model.addAttribute("form", new HoldingForm(holding.getCode(),
-                String.valueOf(holding.getLots()), holding.getBuyPrice().toPlainString()));
-        return "holding-edit";
+    @GetMapping("/holdings/{id}")
+    public String detail(@PathVariable Long id, Model model) {
+        PositionView p = queries.get(id);
+        model.addAttribute("p", p);
+        model.addAttribute("today", LocalDate.now().toString());
+        return "holding-detail";
     }
 
-    @PostMapping("/holdings/{id}")
-    public String update(@PathVariable Long id,
-                         @RequestParam(defaultValue = "") String lots,
-                         @RequestParam(defaultValue = "") String buyPrice,
-                         Model model) {
+    @PostMapping("/holdings/{id}/trades")
+    public String addTrade(@PathVariable Long id,
+                           @RequestParam String side,
+                           @RequestParam(defaultValue = "") String tradeDate,
+                           @RequestParam(defaultValue = "") String shares,
+                           @RequestParam(defaultValue = "") String price,
+                           RedirectAttributes redirect) {
         try {
-            service.update(id, parseLots(lots), parseBuyPrice(buyPrice));
+            positions.addTrade(id, parseSide(side), parseDate(tradeDate), parseShares(shares), parsePrice(price));
         } catch (HoldingException e) {
-            Holding holding = service.get(id);
-            model.addAttribute("holding", holding);
-            model.addAttribute("error", e.getMessage());
-            model.addAttribute("form", new HoldingForm(holding.getCode(), lots, buyPrice));
-            return "holding-edit";
+            redirect.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/holdings/" + id;
+    }
+
+    @PostMapping("/holdings/{id}/trades/{tradeId}/delete")
+    public String deleteTrade(@PathVariable Long id, @PathVariable Long tradeId, RedirectAttributes redirect) {
+        try {
+            positions.deleteTrade(id, tradeId);
+        } catch (HoldingException e) {
+            redirect.addFlashAttribute("error", e.getMessage());
+            return "redirect:/holdings/" + id;
         }
         return "redirect:/holdings";
     }
 
     @PostMapping("/holdings/{id}/delete")
     public String delete(@PathVariable Long id) {
-        service.delete(id);
+        positions.deletePosition(id);
         return "redirect:/holdings";
     }
 
-    /** 找不到持股等錯誤：回清單頁並顯示訊息（例如舊的修改連結）。 */
+    /** 查無持股等錯誤：回清單頁並顯示訊息。 */
     @ExceptionHandler(HoldingException.class)
-    public String onError(HoldingException e, RedirectAttributes redirectAttributes) {
-        redirectAttributes.addFlashAttribute("error", e.getMessage());
+    public String onError(HoldingException e, RedirectAttributes redirect) {
+        redirect.addFlashAttribute("error", e.getMessage());
         return "redirect:/holdings";
     }
 
-    private void fillList(Model model, List<HoldingView> holdings, String error, HoldingForm form) {
-        model.addAttribute("holdings", holdings);
-        model.addAttribute("summary", Summary.of(holdings));
-        if (error != null) {
-            model.addAttribute("error", error);
-        }
-        model.addAttribute("form", form);
-    }
-
-    static Integer parseLots(String raw) {
+    static int parseShares(String raw) {
         try {
-            return Integer.valueOf(raw.trim());
+            return Integer.parseInt(raw.trim());
         } catch (NumberFormatException e) {
-            throw new HoldingException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "張數必須是 1 到 999 的整數");
+            throw badInput("股數必須是 1 到 999,999 的整數");
         }
     }
 
-    static BigDecimal parseBuyPrice(String raw) {
+    static BigDecimal parsePrice(String raw) {
         try {
             return new BigDecimal(raw.trim());
         } catch (NumberFormatException e) {
-            throw new HoldingException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "買進價必須是數字");
+            throw badInput("買進價必須是數字");
         }
     }
 
-    /** 表單回填用，錯誤時保留使用者輸入的值。 */
-    public record HoldingForm(String code, String lots, String buyPrice) {
+    static LocalDate parseDate(String raw) {
+        try {
+            return LocalDate.parse(raw.trim());
+        } catch (RuntimeException e) {
+            throw badInput("交易日期格式不對");
+        }
+    }
+
+    static Side parseSide(String raw) {
+        try {
+            return Side.valueOf(raw);
+        } catch (IllegalArgumentException e) {
+            throw badInput("請選擇買進或賣出");
+        }
+    }
+
+    private static HoldingException badInput(String message) {
+        return new HoldingException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", message);
     }
 }

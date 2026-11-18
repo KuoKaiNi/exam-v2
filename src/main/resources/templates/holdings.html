@@ -6,16 +6,15 @@
     <title>持股清單｜持股記帳</title>
     <style>
         body { font-family: system-ui, sans-serif; margin: 16px; color: #222; }
-        table { border-collapse: collapse; width: 100%; max-width: 720px; }
-        th, td { border-bottom: 1px solid #ddd; padding: 8px; text-align: left; }
+        table { border-collapse: collapse; width: 100%; max-width: 980px; }
+        th, td { border-bottom: 1px solid #ddd; padding: 6px 8px; text-align: left; white-space: nowrap; }
         .error { color: #b00020; font-weight: bold; }
-        form.inline { display: inline; }
-        input { padding: 6px; }
         .gain { color: #d32f2f; }
         .loss { color: #2e7d32; }
-        .summary { border: 1px solid #ddd; border-radius: 8px; padding: 12px 16px; max-width: 720px; }
-        .summary .big { font-size: 1.6em; font-weight: bold; }
         .muted { color: #666; font-size: 0.9em; }
+        .summary { border: 1px solid #ddd; border-radius: 8px; padding: 12px 16px; max-width: 980px; }
+        .summary .big { font-size: 1.6em; font-weight: bold; }
+        input, select { padding: 6px; margin-right: 6px; }
     </style>
 </head>
 <body>
@@ -24,60 +23,63 @@
 
     <p class="error" th:if="${error != null}" th:text="${error}">錯誤訊息</p>
 
-    <form method="post" action="/holdings">
-        <h2>新增持股</h2>
-        <label>股票代號 <input name="code" th:value="${form.code()}" required></label>
-        <label>張數（1 張 = 1,000 股） <input name="lots" th:value="${form.lots()}" required></label>
-        <label>買進價（每股） <input name="buyPrice" th:value="${form.buyPrice()}" required></label>
-        <button type="submit">新增</button>
-    </form>
-
-    <section class="summary" th:unless="${holdings.isEmpty()}">
-        <div>總計盈虧（扣手續費與證交稅）</div>
-        <div class="big" th:classappend="${summary.pnl() > 0 ? 'gain' : (summary.pnl() < 0 ? 'loss' : '')}"
-             th:text="${(summary.pnl() > 0 ? '+' : '') + #numbers.formatInteger(summary.pnl(), 1, 'COMMA') + ' 元　' + #numbers.formatDecimal(summary.returnPct(), 1, 'COMMA', 2, 'POINT') + '%'}">+0 元</div>
+    <section class="summary" th:unless="${positions.isEmpty()}">
+        <div>未實現損益（扣手續費與證交稅，依最近收盤價）</div>
+        <div class="big" th:classappend="${totals.unrealizedPnl() > 0 ? 'gain' : (totals.unrealizedPnl() < 0 ? 'loss' : '')}"
+             th:text="${(totals.unrealizedPnl() > 0 ? '+' : '') + #numbers.formatInteger(totals.unrealizedPnl(), 1, 'COMMA') + ' 元　' + #numbers.formatDecimal(totals.unrealizedReturnPct(), 1, 'COMMA', 2, 'POINT') + '%'}">+0 元</div>
         <div class="muted">
-            總成本 <span th:text="${#numbers.formatInteger(summary.totalCost(), 1, 'COMMA')}">0</span> 元，
-            市值 <span th:text="${#numbers.formatInteger(summary.marketValue(), 1, 'COMMA')}">0</span> 元
-            <span th:if="${summary.quoteMissing() > 0}">，有 <span th:text="${summary.quoteMissing()}">1</span> 筆收盤價未取得，未計入市值與盈虧</span>
+            剩餘成本（含買進手續費）<span th:text="${#numbers.formatInteger(totals.costBasis(), 1, 'COMMA')}">0</span> 元，
+            市值 <span th:text="${#numbers.formatInteger(totals.marketValue(), 1, 'COMMA')}">0</span> 元，
+            已實現損益 <span th:classappend="${totals.realizedPnl() > 0 ? 'gain' : (totals.realizedPnl() < 0 ? 'loss' : '')}"
+                th:text="${(totals.realizedPnl() > 0 ? '+' : '') + #numbers.formatInteger(totals.realizedPnl(), 1, 'COMMA')}">0</span> 元
+            <span th:if="${totals.quoteMissing() > 0}">，有 <span th:text="${totals.quoteMissing()}">1</span> 檔收盤價未取得，未計入市值與未實現損益</span>
         </div>
     </section>
 
+    <h2>新增持股（第一筆買進）</h2>
+    <form method="post" action="/holdings">
+        <input name="code" placeholder="代號，例如 2330" required>
+        <input name="tradeDate" type="date" th:attr="max=${today}" required>
+        <input name="shares" placeholder="股數（1 張 = 1000 股）" required>
+        <input name="price" placeholder="買進價（每股）" required>
+        <button type="submit">新增</button>
+    </form>
+
     <h2>我的持股</h2>
-    <p th:if="${holdings.isEmpty()}">還沒有持股。</p>
-    <table th:unless="${holdings.isEmpty()}">
+    <p th:if="${positions.isEmpty()}">還沒有持股。</p>
+    <table th:unless="${positions.isEmpty()}">
         <thead>
-            <tr><th>代號</th><th>名稱</th><th>市場</th><th>張數</th><th>買進價</th><th>收盤價</th><th>盈虧</th><th>收益率</th><th>操作</th></tr>
+            <tr>
+                <th>代號</th><th>名稱</th><th>市場</th><th>持有</th><th>成交均價</th><th>含費均價</th>
+                <th>收盤價</th><th>未實現損益</th><th>收益率</th><th>已實現損益</th><th></th>
+            </tr>
         </thead>
         <tbody>
-            <tr th:each="h : ${holdings}">
-                <td th:text="${h.code()}">2330</td>
-                <td th:text="${h.name()}">台積電</td>
-                <td th:text="${h.market().label()}">上市</td>
-                <td th:text="${h.lots()}">1</td>
-                <td th:text="${#numbers.formatDecimal(h.buyPrice(), 1, 'COMMA', 2, 'POINT')}">1,000.00</td>
+            <tr th:each="p : ${positions}">
+                <td th:text="${p.code()}">2330</td>
+                <td th:text="${p.name()}">台積電</td>
+                <td th:text="${p.market().label()}">上市</td>
+                <td th:text="${T(com.example.holdings.domain.Shares).format(p.shares())}">1 張</td>
+                <td th:text="${p.avgPrice() == null ? '-' : #numbers.formatDecimal(p.avgPrice(), 1, 'COMMA', 2, 'POINT')}">-</td>
+                <td th:text="${p.avgCost() == null ? '-' : #numbers.formatDecimal(p.avgCost(), 1, 'COMMA', 2, 'POINT')}">-</td>
                 <td>
-                    <span th:if="${h.currentPrice() != null}"
-                          th:text="${#numbers.formatDecimal(h.currentPrice(), 1, 'COMMA', 2, 'POINT') + '（' + #temporals.format(h.priceDate(), 'MM-dd') + '）'}">2,350.00</span>
-                    <span th:if="${h.currentPrice() == null}">未取得</span>
+                    <span th:if="${p.currentPrice() != null}"
+                          th:text="${#numbers.formatDecimal(p.currentPrice(), 1, 'COMMA', 2, 'POINT') + '（' + #temporals.format(p.priceDate(), 'MM-dd') + '）'}">2,175.00</span>
+                    <span th:if="${p.currentPrice() == null and p.shares() > 0}" class="muted">未取得</span>
+                    <span th:if="${p.shares() == 0}" class="muted">已全部賣出</span>
                 </td>
-                <td th:classappend="${h.pnl() == null ? '' : (h.pnl() > 0 ? 'gain' : (h.pnl() < 0 ? 'loss' : ''))}">
-                    <span th:if="${h.pnl() != null}"
-                          th:text="${(h.pnl() > 0 ? '+' : '') + #numbers.formatInteger(h.pnl(), 1, 'COMMA')}">+0</span>
-                    <span th:if="${h.pnl() == null}" class="muted">未取得</span>
+                <td th:classappend="${p.unrealizedPnl() == null ? '' : (p.unrealizedPnl() > 0 ? 'gain' : (p.unrealizedPnl() < 0 ? 'loss' : ''))}">
+                    <span th:if="${p.unrealizedPnl() != null}"
+                          th:text="${(p.unrealizedPnl() > 0 ? '+' : '') + #numbers.formatInteger(p.unrealizedPnl(), 1, 'COMMA')}">+0</span>
+                    <span th:if="${p.shares() > 0 and p.unrealizedPnl() == null}" class="muted">未取得</span>
                 </td>
-                <td th:classappend="${h.pnl() == null ? '' : (h.pnl() > 0 ? 'gain' : (h.pnl() < 0 ? 'loss' : ''))}">
-                    <span th:if="${h.returnPct() != null}"
-                          th:text="${(h.pnl() > 0 ? '+' : '') + #numbers.formatDecimal(h.returnPct(), 1, 'COMMA', 2, 'POINT') + '%'}">+0.00%</span>
-                    <span th:if="${h.returnPct() == null}" class="muted">未取得</span>
+                <td th:classappend="${p.unrealizedPnl() == null ? '' : (p.unrealizedPnl() > 0 ? 'gain' : (p.unrealizedPnl() < 0 ? 'loss' : ''))}">
+                    <span th:if="${p.unrealizedReturnPct() != null}"
+                          th:text="${(p.unrealizedPnl() > 0 ? '+' : '') + #numbers.formatDecimal(p.unrealizedReturnPct(), 1, 'COMMA', 2, 'POINT') + '%'}">+0.00%</span>
                 </td>
-                <td>
-                    <a th:href="@{/holdings/{id}/edit(id=${h.id()})}">修改</a>
-                    <form class="inline" method="post" th:action="@{/holdings/{id}/delete(id=${h.id()})}"
-                          onsubmit="return confirm('確定要刪除這筆持股？');">
-                        <button type="submit">刪除</button>
-                    </form>
-                </td>
+                <td th:classappend="${p.realizedPnl() > 0 ? 'gain' : (p.realizedPnl() < 0 ? 'loss' : '')}"
+                    th:text="${(p.realizedPnl() > 0 ? '+' : '') + #numbers.formatInteger(p.realizedPnl(), 1, 'COMMA')}">0</td>
+                <td><a th:href="@{/holdings/{id}(id=${p.id()})}">明細</a></td>
             </tr>
         </tbody>
     </table>

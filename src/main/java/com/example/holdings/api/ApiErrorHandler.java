@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-/** API 錯誤一律是 {"error":{"code":"...","message":"..."}}，App 會直接顯示 message。 */
+/** API 錯誤一律是 {"error":{"code":"...","message":"..."}}，1.0 App 會直接顯示 message。 */
 @RestControllerAdvice(basePackages = "com.example.holdings.api")
 public class ApiErrorHandler {
 

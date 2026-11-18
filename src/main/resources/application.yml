@@ -27,3 +27,7 @@ quote:
   read-timeout: 3s
   # 新增持股（查上市、上櫃）的總時限
   lookup-deadline: 8s
+
+tax:
+  # 被動式債券 ETF（00 開頭、B 結尾）免徵證交稅的最後一天。待確認，見 ISSUES.md
+  bond-etf-exempt-until: 2026-12-31

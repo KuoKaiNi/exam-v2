@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>持股明細｜持股記帳</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 16px; color: #222; }
+        table { border-collapse: collapse; width: 100%; max-width: 980px; }
+        th, td { border-bottom: 1px solid #ddd; padding: 6px 8px; text-align: left; white-space: nowrap; }
+        .error { color: #b00020; font-weight: bold; }
+        .gain { color: #d32f2f; }
+        .loss { color: #2e7d32; }
+        .muted { color: #666; font-size: 0.9em; }
+        form.inline { display: inline; }
+        input, select { padding: 6px; margin-right: 6px; }
+        section { margin-top: 18px; }
+    </style>
+</head>
+<body>
+    <p><a href="/holdings">回持股清單</a></p>
+    <h1 th:text="${p.code() + ' ' + p.name() + '（' + p.market().label() + '）'}">2330 台積電</h1>
+
+    <p class="error" th:if="${error != null}" th:text="${error}">錯誤訊息</p>
+
+    <p>
+        目前持有 <strong th:text="${T(com.example.holdings.domain.Shares).format(p.shares())}">1 張</strong>
+        <span th:if="${p.shares() > 0}">，剩餘成本（含買進手續費）
+            <span th:text="${#numbers.formatInteger(p.costBasis(), 1, 'COMMA')}">0</span> 元</span>
+        <span th:if="${p.shares() > 0 and p.currentPrice() != null}">，最近收盤價
+            <span th:text="${#numbers.formatDecimal(p.currentPrice(), 1, 'COMMA', 2, 'POINT')}">0</span>（<span th:text="${#temporals.format(p.priceDate(), 'yyyy-MM-dd')}">日期</span>）</span>
+        <span th:if="${p.shares() > 0 and p.currentPrice() == null}" class="muted">，收盤價未取得</span>
+    </p>
+    <p>
+        未實現損益
+        <strong th:classappend="${p.unrealizedPnl() == null ? '' : (p.unrealizedPnl() > 0 ? 'gain' : (p.unrealizedPnl() < 0 ? 'loss' : ''))}"
+                th:text="${p.unrealizedPnl() == null ? '未取得' : ((p.unrealizedPnl() > 0 ? '+' : '') + #numbers.formatInteger(p.unrealizedPnl(), 1, 'COMMA') + ' 元')}">0</strong>
+        ，已實現損益
+        <strong th:classappend="${p.realizedPnl() > 0 ? 'gain' : (p.realizedPnl() < 0 ? 'loss' : '')}"
+                th:text="${(p.realizedPnl() > 0 ? '+' : '') + #numbers.formatInteger(p.realizedPnl(), 1, 'COMMA') + ' 元'}">0</strong>
+    </p>
+
+    <section>
+        <h2>買賣紀錄</h2>
+        <p class="muted">手續費與證交稅在記錄當下算好並保存；1.0 升級來的買進沒有日期，顯示「未記錄」。</p>
+        <table>
+            <thead>
+                <tr><th>交易日</th><th>買賣</th><th>股數</th><th>成交價</th><th>成交金額</th><th>手續費</th><th>證交稅</th><th>已實現損益</th><th></th></tr>
+            </thead>
+            <tbody>
+                <tr th:each="t : ${p.trades()}">
+                    <td th:text="${t.tradeDate() == null ? '未記錄' : t.tradeDate().toString()}">2026-11-01</td>
+                    <td th:text="${t.side().name() == 'BUY' ? '買進' : '賣出'}">買進</td>
+                    <td th:text="${#numbers.formatInteger(t.shares(), 1, 'COMMA')}">1000</td>
+                    <td th:text="${#numbers.formatDecimal(t.price(), 1, 'COMMA', 2, 'POINT')}">1,000.00</td>
+                    <td th:text="${#numbers.formatInteger(t.amount(), 1, 'COMMA')}">1,000,000</td>
+                    <td th:text="${#numbers.formatInteger(t.fee(), 1, 'COMMA')}">1,425</td>
+                    <td th:text="${#numbers.formatInteger(t.tax(), 1, 'COMMA')}">0</td>
+                    <td th:classappend="${t.realizedPnl() == null ? '' : (t.realizedPnl() > 0 ? 'gain' : (t.realizedPnl() < 0 ? 'loss' : ''))}">
+                        <span th:if="${t.realizedPnl() != null}" th:text="${(t.realizedPnl() > 0 ? '+' : '') + #numbers.formatInteger(t.realizedPnl(), 1, 'COMMA')}">0</span>
+                    </td>
+                    <td>
+                        <form class="inline" method="post" th:action="@{/holdings/{id}/trades/{tid}/delete(id=${p.id()},tid=${t.id()})}"
+                              onsubmit="return confirm('確定要刪除這筆交易？');">
+                            <button type="submit">刪除這筆</button>
+                        </form>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section>
+        <h2>新增買進或賣出</h2>
+        <form method="post" th:action="@{/holdings/{id}/trades(id=${p.id()})}">
+            <select name="side">
+                <option value="BUY">買進</option>
+                <option value="SELL">賣出</option>
+            </select>
+            <input name="tradeDate" type="date" th:attr="max=${today}" required>
+            <input name="shares" placeholder="股數（零股可以，例如 300）" required>
+            <input name="price" placeholder="成交價（每股）" required>
+            <button type="submit">送出</button>
+        </form>
+        <p class="muted">賣出不能超過當時持有的股數。若輸入的日期早於之後的賣出，系統會檢查整段帳本是否仍成立。</p>
+    </section>
+
+    <section>
+        <form method="post" th:action="@{/holdings/{id}/delete(id=${p.id()})}"
+              onsubmit="return confirm('確定要刪除這一整檔持股（含所有買賣紀錄）？');">
+            <button type="submit">刪除這一整檔持股</button>
+        </form>
+    </section>
+</body>
+</html>

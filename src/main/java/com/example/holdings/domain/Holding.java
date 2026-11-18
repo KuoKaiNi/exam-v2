@@ -1,5 +1,6 @@
 package com.example.holdings.domain;
 
+import com.example.holdings.quote.Market;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -8,9 +9,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import com.example.holdings.quote.Market;
-import java.math.BigDecimal;
 
+/** 一檔股票的部位。股數與成本由 trade 表算出，這裡只記代號、名稱與市場。 */
 @Entity
 @Table(name = "holding")
 public class Holding {
@@ -29,21 +29,13 @@ public class Holding {
     @Column(nullable = false, length = 10)
     private Market market;
 
-    @Column(nullable = false)
-    private Integer lots;
-
-    @Column(name = "buy_price", nullable = false, precision = 12, scale = 2)
-    private BigDecimal buyPrice;
-
     protected Holding() {
     }
 
-    public Holding(String code, String name, Market market, Integer lots, BigDecimal buyPrice) {
+    public Holding(String code, String name, Market market) {
         this.code = code;
         this.name = name;
         this.market = market;
-        this.lots = lots;
-        this.buyPrice = buyPrice;
     }
 
     public Long getId() {
@@ -60,18 +52,5 @@ public class Holding {
 
     public Market getMarket() {
         return market;
-    }
-
-    public Integer getLots() {
-        return lots;
-    }
-
-    public BigDecimal getBuyPrice() {
-        return buyPrice;
-    }
-
-    public void changeLotsAndPrice(Integer lots, BigDecimal buyPrice) {
-        this.lots = lots;
-        this.buyPrice = buyPrice;
     }
 }

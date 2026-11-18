@@ -1,6 +1,7 @@
 package com.example.holdings.domain;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
 
@@ -29,6 +30,23 @@ public final class HoldingRules {
     public static void checkLots(Integer lots) {
         if (lots == null || lots < MIN_LOTS || lots > MAX_LOTS) {
             throw invalid("張數必須是 1 到 999 的整數");
+        }
+    }
+
+    /** 股數：1 到 999,999 股，零股也可以。 */
+    public static void checkShares(Integer shares) {
+        if (shares == null || shares < 1 || shares > 999_999) {
+            throw invalid("股數必須是 1 到 999,999 的整數");
+        }
+    }
+
+    /** 交易日期：必填，且不能是未來日期。 */
+    public static void checkTradeDate(LocalDate date, LocalDate today) {
+        if (date == null) {
+            throw invalid("交易日期必填");
+        }
+        if (date.isAfter(today)) {
+            throw invalid("交易日期不能是未來日期");
         }
     }
 
