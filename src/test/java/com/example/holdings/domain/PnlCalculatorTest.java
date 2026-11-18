@@ -85,6 +85,19 @@ class PnlCalculatorTest {
     }
 
     @Test
+    void 免徵截止日當天免稅_隔天起0_1() {
+        LocalDate exemptUntil = LocalDate.of(2026, 12, 31);
+        assertEquals(0L, PnlCalculator.tax("00679B", 90_000, LocalDate.of(2026, 12, 31), exemptUntil));
+        assertEquals(90L, PnlCalculator.tax("00679B", 90_000, LocalDate.of(2027, 1, 1), exemptUntil));
+    }
+
+    @Test
+    void 一般ETF不受免徵影響() {
+        // 00878 不是債券 ETF，即使在截止日內仍收 0.1%
+        assertEquals(90L, PnlCalculator.tax("00878", 90_000, LocalDate.of(2026, 11, 10), LocalDate.of(2026, 12, 31)));
+    }
+
+    @Test
     void 零股手續費同樣最低20元() {
         // 300 股，買 50.00：買進金額 15,000，手續費 21 → 不低於 20；賣 52.00：金額 15,600，手續費 22
         assertEquals(20L, PnlCalculator.fee(10_000));
