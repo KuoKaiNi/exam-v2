@@ -11,6 +11,11 @@
         .error { color: #b00020; font-weight: bold; }
         form.inline { display: inline; }
         input { padding: 6px; }
+        .gain { color: #d32f2f; }
+        .loss { color: #2e7d32; }
+        .summary { border: 1px solid #ddd; border-radius: 8px; padding: 12px 16px; max-width: 720px; }
+        .summary .big { font-size: 1.6em; font-weight: bold; }
+        .muted { color: #666; font-size: 0.9em; }
     </style>
 </head>
 <body>
@@ -27,11 +32,22 @@
         <button type="submit">新增</button>
     </form>
 
+    <section class="summary" th:unless="${holdings.isEmpty()}">
+        <div>總計盈虧（扣手續費與證交稅）</div>
+        <div class="big" th:classappend="${summary.pnl() > 0 ? 'gain' : (summary.pnl() < 0 ? 'loss' : '')}"
+             th:text="${(summary.pnl() > 0 ? '+' : '') + #numbers.formatInteger(summary.pnl(), 1, 'COMMA') + ' 元　' + #numbers.formatDecimal(summary.returnPct(), 1, 'COMMA', 2, 'POINT') + '%'}">+0 元</div>
+        <div class="muted">
+            總成本 <span th:text="${#numbers.formatInteger(summary.totalCost(), 1, 'COMMA')}">0</span> 元，
+            市值 <span th:text="${#numbers.formatInteger(summary.marketValue(), 1, 'COMMA')}">0</span> 元
+            <span th:if="${summary.quoteMissing() > 0}">，有 <span th:text="${summary.quoteMissing()}">1</span> 筆收盤價未取得，未計入市值與盈虧</span>
+        </div>
+    </section>
+
     <h2>我的持股</h2>
     <p th:if="${holdings.isEmpty()}">還沒有持股。</p>
     <table th:unless="${holdings.isEmpty()}">
         <thead>
-            <tr><th>代號</th><th>名稱</th><th>市場</th><th>張數</th><th>買進價</th><th>收盤價</th><th>操作</th></tr>
+            <tr><th>代號</th><th>名稱</th><th>市場</th><th>張數</th><th>買進價</th><th>收盤價</th><th>盈虧</th><th>收益率</th><th>操作</th></tr>
         </thead>
         <tbody>
             <tr th:each="h : ${holdings}">
@@ -44,6 +60,16 @@
                     <span th:if="${h.currentPrice() != null}"
                           th:text="${#numbers.formatDecimal(h.currentPrice(), 1, 'COMMA', 2, 'POINT') + '（' + #temporals.format(h.priceDate(), 'MM-dd') + '）'}">2,350.00</span>
                     <span th:if="${h.currentPrice() == null}">未取得</span>
+                </td>
+                <td th:classappend="${h.pnl() == null ? '' : (h.pnl() > 0 ? 'gain' : (h.pnl() < 0 ? 'loss' : ''))}">
+                    <span th:if="${h.pnl() != null}"
+                          th:text="${(h.pnl() > 0 ? '+' : '') + #numbers.formatInteger(h.pnl(), 1, 'COMMA')}">+0</span>
+                    <span th:if="${h.pnl() == null}" class="muted">未取得</span>
+                </td>
+                <td th:classappend="${h.pnl() == null ? '' : (h.pnl() > 0 ? 'gain' : (h.pnl() < 0 ? 'loss' : ''))}">
+                    <span th:if="${h.returnPct() != null}"
+                          th:text="${(h.pnl() > 0 ? '+' : '') + #numbers.formatDecimal(h.returnPct(), 1, 'COMMA', 2, 'POINT') + '%'}">+0.00%</span>
+                    <span th:if="${h.returnPct() == null}" class="muted">未取得</span>
                 </td>
                 <td>
                     <a th:href="@{/holdings/{id}/edit(id=${h.id()})}">修改</a>

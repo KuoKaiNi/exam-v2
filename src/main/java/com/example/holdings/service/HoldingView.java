@@ -4,7 +4,7 @@ import com.example.holdings.quote.Market;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/** 清單一列的資料：持股欄位加上最近收盤價（查不到時為 null）。 */
+/** 清單一列的資料：持股欄位、最近收盤價與盈虧（取不到收盤價時收盤價、盈虧、收益率為 null）。 */
 public record HoldingView(
         Long id,
         String code,
@@ -13,5 +13,9 @@ public record HoldingView(
         int lots,
         BigDecimal buyPrice,
         BigDecimal currentPrice,
-        LocalDate priceDate) {
+        LocalDate priceDate,
+        long buyCost,
+        Long marketValue,
+        Long pnl,
+        BigDecimal returnPct) {
 }

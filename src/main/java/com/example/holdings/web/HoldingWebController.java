@@ -6,6 +6,7 @@ import com.example.holdings.domain.HoldingRules;
 import com.example.holdings.service.HoldingQueryService;
 import com.example.holdings.service.HoldingService;
 import com.example.holdings.service.HoldingView;
+import com.example.holdings.service.Summary;
 import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -92,6 +93,7 @@ public class HoldingWebController {
 
     private void fillList(Model model, List<HoldingView> holdings, String error, HoldingForm form) {
         model.addAttribute("holdings", holdings);
+        model.addAttribute("summary", Summary.of(holdings));
         if (error != null) {
             model.addAttribute("error", error);
         }
