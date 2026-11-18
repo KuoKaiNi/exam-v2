@@ -12,3 +12,18 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+
+quote:
+  # 官方行情網址。驗收時可用環境變數改掉，例如 QUOTE_TWSE_BASE_URL=http://localhost:9000
+  twse-base-url: ${QUOTE_TWSE_BASE_URL:https://www.twse.com.tw}
+  tpex-base-url: ${QUOTE_TPEX_BASE_URL:https://www.tpex.org.tw}
+  # 收盤價快取時間；同一檔在這段時間內不會再向官方查
+  cache-ttl: 30m
+  # 某個來源連線失敗後，暫停查詢它的時間
+  failure-backoff: 3m
+  # 對官方連續發出的請求之間至少隔多久
+  min-request-interval: 1s
+  connect-timeout: 2s
+  read-timeout: 3s
+  # 新增持股（查上市、上櫃）的總時限
+  lookup-deadline: 8s

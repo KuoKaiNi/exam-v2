@@ -31,3 +31,23 @@
 
 資料存在專案底下的 `data/holdings.mv.db`（H2 檔案模式），表結構由 Flyway 在啟動時建立（`src/main/resources/db/migration/`）。
 要重置資料，停止程序後刪除 `data/` 資料夾即可。
+
+## 官方行情
+
+新增持股時只輸入代號，系統自己判斷上市或上櫃（先查證交所，再查櫃買中心），並存下股票名稱、市場與最近一個交易日的收盤價。
+
+- 上市：臺灣證券交易所 `STOCK_DAY`
+- 上櫃：證券櫃檯買賣中心 `tradingStock`
+- 代號在上市、上櫃都查不到：顯示「找不到代號」，資料不儲存。
+- 官方連不上：新增顯示「官方行情暫時連不上，請稍後再試」，資料不儲存。
+- 清單頁的收盤價來自快取（預設 30 分鐘），不會每次打開清單都向官方查。官方連不上時，收盤價那格顯示「未取得」，其餘欄位照常顯示。
+
+### 改成其他行情網址（例如測試伺服器）
+
+主機部分可以用環境變數改掉，路徑與參數不變：
+
+```bash
+QUOTE_TWSE_BASE_URL=http://localhost:9000 QUOTE_TPEX_BASE_URL=http://localhost:9000 ./mvnw spring-boot:run
+```
+
+預設值寫在 `src/main/resources/application.yml` 的 `quote` 區段，也可以直接改那裡。

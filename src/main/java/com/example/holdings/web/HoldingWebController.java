@@ -3,7 +3,9 @@ package com.example.holdings.web;
 import com.example.holdings.domain.Holding;
 import com.example.holdings.domain.HoldingException;
 import com.example.holdings.domain.HoldingRules;
+import com.example.holdings.service.HoldingQueryService;
 import com.example.holdings.service.HoldingService;
+import com.example.holdings.service.HoldingView;
 import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -21,14 +23,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class HoldingWebController {
 
     private final HoldingService service;
+    private final HoldingQueryService queryService;
 
-    public HoldingWebController(HoldingService service) {
+    public HoldingWebController(HoldingService service, HoldingQueryService queryService) {
         this.service = service;
+        this.queryService = queryService;
     }
 
     @GetMapping("/holdings")
     public String list(Model model) {
-        fillList(model, service.list(), null, new HoldingForm("", "", ""));
+        fillList(model, queryService.list(), null, new HoldingForm("", "", ""));
         return "holdings";
     }
 
@@ -41,7 +45,7 @@ public class HoldingWebController {
         try {
             service.create(code, parseLots(lots), parseBuyPrice(buyPrice));
         } catch (HoldingException e) {
-            fillList(model, service.list(), e.getMessage(), form);
+            fillList(model, queryService.list(), e.getMessage(), form);
             return "holdings";
         }
         return "redirect:/holdings";
@@ -86,7 +90,7 @@ public class HoldingWebController {
         return "redirect:/holdings";
     }
 
-    private void fillList(Model model, List<Holding> holdings, String error, HoldingForm form) {
+    private void fillList(Model model, List<HoldingView> holdings, String error, HoldingForm form) {
         model.addAttribute("holdings", holdings);
         if (error != null) {
             model.addAttribute("error", error);

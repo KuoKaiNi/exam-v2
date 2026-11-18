@@ -2,10 +2,13 @@ package com.example.holdings.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import com.example.holdings.quote.Market;
 import java.math.BigDecimal;
 
 @Entity
@@ -19,6 +22,13 @@ public class Holding {
     @Column(nullable = false, unique = true, length = 10)
     private String code;
 
+    @Column(nullable = false, length = 50)
+    private String name;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private Market market;
+
     @Column(nullable = false)
     private Integer lots;
 
@@ -28,8 +38,10 @@ public class Holding {
     protected Holding() {
     }
 
-    public Holding(String code, Integer lots, BigDecimal buyPrice) {
+    public Holding(String code, String name, Market market, Integer lots, BigDecimal buyPrice) {
         this.code = code;
+        this.name = name;
+        this.market = market;
         this.lots = lots;
         this.buyPrice = buyPrice;
     }
@@ -40,6 +52,14 @@ public class Holding {
 
     public String getCode() {
         return code;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public Market getMarket() {
+        return market;
     }
 
     public Integer getLots() {

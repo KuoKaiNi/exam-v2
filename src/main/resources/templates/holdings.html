@@ -31,16 +31,23 @@
     <p th:if="${holdings.isEmpty()}">還沒有持股。</p>
     <table th:unless="${holdings.isEmpty()}">
         <thead>
-            <tr><th>代號</th><th>張數</th><th>買進價</th><th>操作</th></tr>
+            <tr><th>代號</th><th>名稱</th><th>市場</th><th>張數</th><th>買進價</th><th>收盤價</th><th>操作</th></tr>
         </thead>
         <tbody>
             <tr th:each="h : ${holdings}">
-                <td th:text="${h.code}">2330</td>
-                <td th:text="${h.lots}">1</td>
-                <td th:text="${#numbers.formatDecimal(h.buyPrice, 1, 'COMMA', 2, 'POINT')}">1,000.00</td>
+                <td th:text="${h.code()}">2330</td>
+                <td th:text="${h.name()}">台積電</td>
+                <td th:text="${h.market().label()}">上市</td>
+                <td th:text="${h.lots()}">1</td>
+                <td th:text="${#numbers.formatDecimal(h.buyPrice(), 1, 'COMMA', 2, 'POINT')}">1,000.00</td>
                 <td>
-                    <a th:href="@{/holdings/{id}/edit(id=${h.id})}">修改</a>
-                    <form class="inline" method="post" th:action="@{/holdings/{id}/delete(id=${h.id})}"
+                    <span th:if="${h.currentPrice() != null}"
+                          th:text="${#numbers.formatDecimal(h.currentPrice(), 1, 'COMMA', 2, 'POINT') + '（' + #temporals.format(h.priceDate(), 'MM-dd') + '）'}">2,350.00</span>
+                    <span th:if="${h.currentPrice() == null}">未取得</span>
+                </td>
+                <td>
+                    <a th:href="@{/holdings/{id}/edit(id=${h.id()})}">修改</a>
+                    <form class="inline" method="post" th:action="@{/holdings/{id}/delete(id=${h.id()})}"
                           onsubmit="return confirm('確定要刪除這筆持股？');">
                         <button type="submit">刪除</button>
                     </form>
