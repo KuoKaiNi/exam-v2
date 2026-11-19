@@ -10,7 +10,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
  * 自己解析請求內容：App 1.0 不在手機上檢查輸入，填什麼就送什麼，所以 lots 可能是 1.5、"abc"、null。
  * 先把每個欄位取成字串，再交給跟網頁共用的 HoldingInput 檢查，錯了一律回 400 VALIDATION_ERROR。
  */
-final class RequestBodies {
+public final class RequestBodies {
 
     private static final ObjectReader READER = new ObjectMapper()
             .reader().with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
@@ -18,7 +18,7 @@ final class RequestBodies {
     private RequestBodies() {
     }
 
-    static JsonNode parse(String body) {
+    public static JsonNode parse(String body) {
         if (body == null || body.isBlank()) {
             throw HoldingException.validation("請求內容是空的，要送 JSON 物件");
         }
@@ -36,7 +36,7 @@ final class RequestBodies {
     }
 
     /** 欄位轉成字串；不存在或 null 回 null（由檢查規則報「必填」）。數字保留原樣，例如 1.5 → "1.5"。 */
-    static String field(JsonNode obj, String name) {
+    public static String field(JsonNode obj, String name) {
         JsonNode v = obj.get(name);
         if (v == null || v.isNull()) {
             return null;

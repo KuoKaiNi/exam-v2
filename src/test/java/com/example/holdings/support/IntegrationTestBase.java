@@ -40,9 +40,12 @@ public abstract class IntegrationTestBase {
     protected StockQuoteRepository quoteRepository;
     @Autowired
     protected TradeRepository tradeRepository;
+    @Autowired
+    protected com.example.holdings.idempotency.IdempotencyRepository idempotencyRepository;
 
     @BeforeEach
     void resetState() {
+        idempotencyRepository.deleteAllInBatch();
         tradeRepository.deleteAllInBatch();
         holdingRepository.deleteAllInBatch();
         quoteRepository.deleteAll();

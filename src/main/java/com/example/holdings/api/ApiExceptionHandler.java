@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.example.holdings.holding.HoldingException;
 
 /** API 的錯誤一律回 {"error":{"code","message"}}，App 才能顯示 message；不能讓 Spring 預設的錯誤頁跑出來。 */
-@RestControllerAdvice(assignableTypes = {HoldingApiController.class, ApiFallbackController.class})
+@RestControllerAdvice(assignableTypes = {HoldingApiController.class, ApiFallbackController.class,
+        com.example.holdings.api.v2.V2ApiController.class})
 public class ApiExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);

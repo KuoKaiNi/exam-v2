@@ -130,7 +130,12 @@ public class QuoteService {
     private StockQuote save(String code, Market market, MonthlyQuote m, Instant now) {
         StockQuote q = new StockQuote(code, market, m.name().isEmpty() ? code : m.name());
         q.recordSuccess(m.name(), m.latest().orElse(null), now);
-        return repository.save(q);
+        try {
+            return repository.save(q);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // 兩台裝置同時新增同一個新代號：另一個請求已經存好了，沿用那一筆
+            return repository.findById(code).orElseThrow(() -> e);
+        }
     }
 
     /** 測試用：清除出錯冷卻。 */

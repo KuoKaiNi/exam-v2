@@ -30,6 +30,8 @@ public class FakeOfficialServer {
     private final List<String> requests = Collections.synchronizedList(new ArrayList<>());
     public final AtomicBoolean twseDown = new AtomicBoolean();
     public final AtomicBoolean tpexDown = new AtomicBoolean();
+    /** 每個回應前先等這麼多毫秒（模擬官方網站很慢）。 */
+    public final java.util.concurrent.atomic.AtomicLong delayMs = new java.util.concurrent.atomic.AtomicLong();
 
     public FakeOfficialServer() {
         try {
@@ -55,6 +57,7 @@ public class FakeOfficialServer {
         requests.clear();
         twseDown.set(false);
         tpexDown.set(false);
+        delayMs.set(0);
     }
 
     public List<String> requests() {
@@ -139,7 +142,15 @@ public class FakeOfficialServer {
                 + "\",\"name\":\"" + name + "\",\"stat\":\"ok\"}");
     }
 
-    private static void send(HttpExchange ex, int status, String body) throws IOException {
+    private void send(HttpExchange ex, int status, String body) throws IOException {
+        long d = delayMs.get();
+        if (d > 0) {
+            try {
+                Thread.sleep(d);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         ex.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
         ex.sendResponseHeaders(status, bytes.length);
