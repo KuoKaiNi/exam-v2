@@ -3,25 +3,15 @@ package com.example.holdings.holding;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest
-@ActiveProfiles("test")
-class HoldingServiceTest {
+import com.example.holdings.support.IntegrationTestBase;
+
+class HoldingServiceTest extends IntegrationTestBase {
 
     @Autowired
     HoldingService service;
-    @Autowired
-    HoldingRepository repository;
-
-    @BeforeEach
-    void clean() {
-        repository.deleteAll();
-    }
 
     @Test
     void createUpdateDelete() {
@@ -54,6 +44,15 @@ class HoldingServiceTest {
         Holding h = service.create("2330", "1", "1000");
         assertThatThrownBy(() -> service.update(h.getId(), "1000", "1")).isInstanceOf(HoldingException.class);
         assertThat(service.get(h.getId()).getLots()).isEqualTo(1);
+    }
+
+    @Test
+    void unknownCodeIsRejectedAndNotSaved() {
+        assertThatThrownBy(() -> service.create("9999", "1", "10"))
+                .hasMessageContaining("9999")
+                .extracting(e -> ((HoldingException) e).getKind())
+                .isEqualTo(HoldingException.Kind.STOCK_NOT_FOUND);
+        assertThat(service.list()).isEmpty();
     }
 
     @Test

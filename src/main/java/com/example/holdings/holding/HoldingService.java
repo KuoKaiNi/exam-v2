@@ -7,14 +7,18 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.holdings.quote.QuoteService;
+
 @Service
 public class HoldingService {
 
     private final HoldingRepository repository;
+    private final QuoteService quoteService;
     private final Clock clock;
 
-    public HoldingService(HoldingRepository repository, Clock clock) {
+    public HoldingService(HoldingRepository repository, QuoteService quoteService, Clock clock) {
         this.repository = repository;
+        this.quoteService = quoteService;
         this.clock = clock;
     }
 
@@ -34,6 +38,8 @@ public class HoldingService {
         if (repository.existsByCode(code)) {
             throw duplicate(code);
         }
+        // 查官方確認代號存在（上市或上櫃），查不到就丟 STOCK_NOT_FOUND，不儲存
+        quoteService.lookupAndCache(code);
         try {
             return repository.saveAndFlush(new Holding(code, values.lots(), values.buyPrice(), clock.instant()));
         } catch (DataIntegrityViolationException e) {

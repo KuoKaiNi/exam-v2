@@ -19,3 +19,5 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 form.edit, form.del { display: inline-flex; gap: 6px; }
 form.edit input { width: 90px; }
 .overflow { overflow-x: auto; }
+.missing { color: #999; }
+small.date { color: #888; margin-left: 4px; }

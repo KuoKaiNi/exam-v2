@@ -14,6 +14,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.example.holdings.holding.Holding;
 import com.example.holdings.holding.HoldingException;
+import com.example.holdings.holding.HoldingQueryService;
 import com.example.holdings.holding.HoldingService;
 
 /**
@@ -26,10 +27,12 @@ public class HomeController {
 
     private final Clock clock;
     private final HoldingService holdingService;
+    private final HoldingQueryService queryService;
 
-    public HomeController(Clock clock, HoldingService holdingService) {
+    public HomeController(Clock clock, HoldingService holdingService, HoldingQueryService queryService) {
         this.clock = clock;
         this.holdingService = holdingService;
+        this.queryService = queryService;
     }
 
     @GetMapping("/")
@@ -37,7 +40,7 @@ public class HomeController {
         ZonedDateTime now = ZonedDateTime.now(clock);
         model.addAttribute("now", now.format(FORMAT));
         model.addAttribute("zone", now.getZone().getId());
-        model.addAttribute("holdings", holdingService.list());
+        model.addAttribute("holdings", queryService.list());
         return "home";
     }
 

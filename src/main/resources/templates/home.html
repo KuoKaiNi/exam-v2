@@ -28,14 +28,24 @@
     <section class="card">
         <h2>持股清單</h2>
         <p th:if="${#lists.isEmpty(holdings)}" class="empty">還沒有持股，從上面新增一筆。</p>
-        <table th:unless="${#lists.isEmpty(holdings)}" class="holdings">
+        <div class="overflow" th:unless="${#lists.isEmpty(holdings)}">
+        <table class="holdings">
             <thead>
-            <tr><th>代號</th><th>張數</th><th>買進價</th><th></th></tr>
+            <tr><th>代號</th><th>名稱</th><th>市場</th><th class="num">收盤價</th><th>張數／買進價</th></tr>
             </thead>
             <tbody>
             <tr th:each="h : ${holdings}" th:attr="data-code=${h.code}">
                 <td class="code" th:text="${h.code}">2330</td>
-                <td colspan="3">
+                <td th:text="${h.name}">台積電</td>
+                <td th:text="${h.market != null ? h.market.label : ''}">上市</td>
+                <td class="num price">
+                    <th:block th:if="${h.currentPrice != null}">
+                        <span th:text="${#numbers.formatDecimal(h.currentPrice, 1, 'COMMA', 2, 'POINT')}">1,100.00</span>
+                        <small class="date" th:text="${#temporals.format(h.priceDate, 'MM-dd')}">11-12</small>
+                    </th:block>
+                    <span th:if="${h.currentPrice == null}" class="missing">未取得</span>
+                </td>
+                <td>
                     <form method="post" th:action="@{/holdings/{id}(id=${h.id})}" class="edit">
                         <input name="lots" th:value="${h.lots}" aria-label="張數" inputmode="numeric">
                         <input name="buyPrice" th:value="${h.buyPrice}" aria-label="買進價" inputmode="decimal">
@@ -49,6 +59,8 @@
             </tr>
             </tbody>
         </table>
+        </div>
+        <p class="hint">收盤價是證交所／櫃買中心公布的最近一個交易日收盤價（右邊小字是日期），每天收盤公布後自動更新。</p>
     </section>
 </main>
 </body>
