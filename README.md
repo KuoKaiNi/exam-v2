@@ -104,3 +104,34 @@ TWSE_BASE_URL=http://localhost:9000 TPEX_BASE_URL=http://localhost:9000 ./mvnw s
 
 單元測試在 `src/test/java/com/example/holdings/pnl/PnlCalculatorTest.java`，涵蓋題目的三個例子（一般股票、ETF、手續費低於 20 元）。
 所有測試都不連證交所或櫃買中心：需要行情的整合測試用測試程式自己啟動的本機假伺服器。
+
+## 給手機 App 用的 API（App 1.0）
+
+完全照《App 1.0 API 規格》實作，路徑開頭 `/api/v1`，回應 JSON（UTF-8），欄位小寫加底線。
+
+| 方法 | 路徑 | 成功 | 失敗 |
+|---|---|---|---|
+| GET | `/api/v1/holdings` | 200 持股陣列（沒有回 `[]`） | |
+| GET | `/api/v1/holdings/{id}` | 200 | 404 `NOT_FOUND` |
+| POST | `/api/v1/holdings` | 201 | 400 `VALIDATION_ERROR`、404 `STOCK_NOT_FOUND`、409 `DUPLICATE_CODE` |
+| PUT | `/api/v1/holdings/{id}` | 200 | 400 `VALIDATION_ERROR`、404 `NOT_FOUND` |
+| DELETE | `/api/v1/holdings/{id}` | 204 | 404 `NOT_FOUND` |
+| GET | `/api/v1/summary` | 200 總計 | |
+
+錯誤一律是 `{"error":{"code":"...","message":"..."}}`。規格以外的情況：
+- 新增時官方網站連不上、無法確認代號是否存在：503 `QUOTE_UNAVAILABLE`（不儲存）。
+- PUT 帶了不同的 `code`：400 `VALIDATION_ERROR`（代號不能改）。
+- `/api/` 底下不存在的路徑：404 `NOT_FOUND`；未預期的錯誤：500 `INTERNAL_ERROR`。
+
+範例：
+
+```bash
+curl -X POST localhost:8085/api/v1/holdings -H 'Content-Type: application/json' -d '{"code":"2330","lots":1,"buy_price":1000}'
+curl localhost:8085/api/v1/holdings
+curl localhost:8085/api/v1/summary
+```
+
+### 用 App 1.0 連線
+
+Android 模擬器裡「設定」填 `http://10.0.2.2:8085`；實體手機填電腦的區網 IP，例如 `http://192.168.1.20:8085`。
+App 1.0 連到本伺服器的清單畫面：`screenshots/v1-app1-list.png`。
