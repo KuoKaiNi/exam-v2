@@ -8,54 +8,56 @@
 </head>
 <body>
 <main>
-    <h1>持股記帳</h1>
-    <p class="now">目前時間：<span id="now" th:text="${now}">2026-11-19 14:00:00</span>（<span th:text="${zone}">Asia/Taipei</span>）</p>
-
-    <p class="flash ok" th:if="${message}" th:text="${message}">已新增</p>
-    <p class="flash err" id="error" th:if="${error}" th:text="${error}">錯誤</p>
+    <header th:replace="~{fragments :: header}"></header>
 
     <section class="card summary" id="summary">
-        <h2>總計（假設現在用收盤價全部賣出）</h2>
-        <p class="total">
-            <span id="total-pnl" th:class="${fmt.cls(summary.unrealizedPnl)}" th:text="${fmt.signedMoney(summary.unrealizedPnl)} + ' 元'">+93,708 元</span>
-            <span id="total-pct" th:class="${fmt.cls(summary.unrealizedPnl)}" th:text="${fmt.signedPct(summary.unrealizedReturnPct)}">+9.36%</span>
-        </p>
+        <h2>總計</h2>
+        <div class="totals">
+            <div>
+                <p class="label">未實現損益（假設現在用收盤價全部賣出）</p>
+                <p class="total">
+                    <span id="total-pnl" th:class="${fmt.cls(summary.unrealizedPnl)}" th:text="${fmt.signedMoney(summary.unrealizedPnl)} + ' 元'">+93,708 元</span>
+                    <span id="total-pct" th:class="${fmt.cls(summary.unrealizedPnl)}" th:text="${fmt.signedPct(summary.unrealizedReturnPct)}">+9.36%</span>
+                </p>
+            </div>
+            <div>
+                <p class="label">已實現損益（已賣出的部分）</p>
+                <p class="total"><span id="realized" th:class="${fmt.cls(summary.realizedPnl)}" th:text="${fmt.signedMoney(summary.realizedPnl)} + ' 元'">+0 元</span></p>
+            </div>
+        </div>
         <dl>
-            <div><dt>總成本</dt><dd id="total-cost" th:text="${fmt.money(summary.totalCost)}">1,001,425</dd></div>
+            <div><dt>總成本（含買進手續費）</dt><dd id="total-cost" th:text="${fmt.money(summary.totalCost)}">1,001,425</dd></div>
             <div><dt>市值</dt><dd id="market-value" th:text="${fmt.money(summary.marketValue)}">1,100,000</dd></div>
         </dl>
         <p class="hint" th:if="${summary.quoteMissing > 0}"
-           th:text="|有 ${summary.quoteMissing} 筆未取得收盤價，沒有算進市值和盈虧（有算進總成本）。|">有 1 筆未取得收盤價</p>
+           th:text="|有 ${summary.quoteMissing} 檔未取得收盤價，沒有算進市值和未實現損益（有算進總成本）。|">有 1 檔未取得收盤價</p>
     </section>
 
     <section class="card">
-        <h2>新增持股</h2>
-        <form method="post" action="/holdings" class="add">
-            <label>股票代號 <input name="code" required placeholder="2330" th:value="${form?.code}"></label>
-            <label>張數 <input name="lots" required inputmode="numeric" placeholder="1" th:value="${form?.lots}"></label>
-            <label>買進價 <input name="buyPrice" required inputmode="decimal" placeholder="1000.00" th:value="${form?.buyPrice}"></label>
-            <button type="submit">新增</button>
-        </form>
-        <p class="hint">1 張 = 1,000 股；張數 1～999；買進價最多兩位小數。新增時會向證交所／櫃買中心確認代號，最多約 10 秒。</p>
+        <h2>記一筆交易</h2>
+        <form th:replace="~{fragments :: tradeForm(null, '/')}"></form>
+        <p class="hint">股數用「股」記，零股也可以（1 張 = 1,000 股）。同一檔可以分多次買進；賣出不能超過當時手上的股數。新代號第一次買進會向證交所／櫃買中心確認，最多約 10 秒。</p>
     </section>
 
     <section class="card">
-        <h2>持股清單</h2>
-        <p th:if="${#lists.isEmpty(holdings)}" class="empty">還沒有持股，從上面新增一筆。</p>
-        <div class="overflow" th:unless="${#lists.isEmpty(holdings)}">
+        <h2>持股</h2>
+        <p th:if="${#lists.isEmpty(open)}" class="empty">目前沒有持股，從上面記一筆買進。</p>
+        <div class="overflow" th:unless="${#lists.isEmpty(open)}">
         <table class="holdings">
             <thead>
             <tr>
-                <th>代號</th><th>名稱</th><th>市場</th>
-                <th class="num">收盤價</th><th class="num">盈虧（元）</th><th class="num">收益率</th>
-                <th>張數／買進價</th>
+                <th>代號</th><th>名稱</th>
+                <th class="num">股數</th><th class="num">平均成本</th><th class="num">收盤價</th>
+                <th class="num">市值</th><th class="num">未實現損益</th><th class="num">收益率</th><th class="num">已實現損益</th>
             </tr>
             </thead>
             <tbody>
-            <tr th:each="h : ${holdings}" th:attr="data-code=${h.code}">
-                <td class="code" th:text="${h.code}">2330</td>
-                <td th:text="${h.name}">台積電</td>
-                <td th:text="${h.market != null ? h.market.label : ''}">上市</td>
+            <tr th:each="h : ${open}" th:attr="data-code=${h.code}">
+                <td class="code"><a th:href="@{/holdings/{id}(id=${h.id})}" th:text="${h.code}">2330</a></td>
+                <td><a th:href="@{/holdings/{id}(id=${h.id})}" th:text="${h.name}">台積電</a>
+                    <small class="mkt" th:text="${h.market != null ? h.market.label : ''}">上市</small></td>
+                <td class="num shares" th:text="${fmt.shares(h.shares)}">1,500</td>
+                <td class="num" th:text="${fmt.price(h.avgCost)}">1,034.81</td>
                 <td class="num price">
                     <th:block th:if="${h.currentPrice != null}">
                         <span th:text="${fmt.price(h.currentPrice)}">1,100.00</span>
@@ -63,25 +65,29 @@
                     </th:block>
                     <span th:if="${h.currentPrice == null}" class="missing">未取得</span>
                 </td>
+                <td class="num" th:text="${h.marketValue == null ? '' : fmt.money(h.marketValue)}">1,650,000</td>
                 <td class="num pnl" th:classappend="${fmt.cls(h.unrealizedPnl)}" th:text="${fmt.signedMoney(h.unrealizedPnl)}">+93,708</td>
                 <td class="num pct" th:classappend="${fmt.cls(h.unrealizedPnl)}" th:text="${fmt.signedPct(h.unrealizedReturnPct)}">+9.36%</td>
-                <td class="actions">
-                    <form method="post" th:action="@{/holdings/{id}(id=${h.id})}" class="edit">
-                        <input name="lots" th:value="${h.shares / 1000}" aria-label="張數" inputmode="numeric">
-                        <input name="buyPrice" th:value="${h.avgPrice}" aria-label="買進價" inputmode="decimal">
-                        <button type="submit">修改</button>
-                    </form>
-                    <form method="post" th:action="@{/holdings/{id}/delete(id=${h.id})}" class="del"
-                          onsubmit="return confirm('確定刪除這筆持股？');">
-                        <button type="submit" class="danger">刪除</button>
-                    </form>
-                </td>
+                <td class="num realized" th:classappend="${fmt.cls(h.realizedPnl)}" th:text="${h.realizedPnl == 0 ? '—' : fmt.signedMoney(h.realizedPnl)}">—</td>
             </tr>
             </tbody>
         </table>
         </div>
-        <p class="hint">收盤價是證交所／櫃買中心公布的最近一個交易日收盤價（右邊小字是日期），每天收盤公布後自動更新。
-            盈虧已扣買賣手續費（0.1425%，最低 20 元）與證交稅（股票 0.3%、ETF 0.1%）。紅色是賺、綠色是虧。</p>
+        <p class="hint">點代號看每一筆買賣、修改或刪除。平均成本含買進手續費。未實現損益已扣賣出手續費（0.1425%，最低 20 元）與證交稅（股票 0.3%、ETF 0.1%）。紅色是賺、綠色是虧。</p>
+    </section>
+
+    <section class="card" th:unless="${#lists.isEmpty(closed)}">
+        <h2>已全部賣出</h2>
+        <table class="holdings">
+            <thead><tr><th>代號</th><th>名稱</th><th class="num">已實現損益</th></tr></thead>
+            <tbody>
+            <tr th:each="h : ${closed}" th:attr="data-code=${h.code}">
+                <td class="code"><a th:href="@{/holdings/{id}(id=${h.id})}" th:text="${h.code}">2363</a></td>
+                <td th:text="${h.name}">矽統</td>
+                <td class="num realized" th:classappend="${fmt.cls(h.realizedPnl)}" th:text="${fmt.signedMoney(h.realizedPnl)}">+429</td>
+            </tr>
+            </tbody>
+        </table>
     </section>
 </main>
 </body>

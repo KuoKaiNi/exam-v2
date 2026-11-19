@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="|${p.code} ${p.name}｜持股記帳|">持股記帳</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main th:with="back=${'/holdings/' + p.id}">
+    <header th:replace="~{fragments :: header}"></header>
+    <p><a href="/">← 回持股清單</a></p>
+
+    <section class="card summary" id="position">
+        <h2><span th:text="${p.code}">2330</span> <span th:text="${p.name}">台積電</span>
+            <small class="mkt" th:text="${p.market != null ? p.market.label : ''}">上市</small></h2>
+        <dl class="grid">
+            <div><dt>股數</dt><dd id="shares" th:text="${fmt.shares(p.shares)}">1,500</dd></div>
+            <div><dt>平均成本（含買進手續費）</dt><dd id="avg-cost" th:text="${p.avgCost == null ? '—' : fmt.price(p.avgCost)}">1,034.81</dd></div>
+            <div><dt>總成本</dt><dd th:text="${fmt.money(p.cost)}">1,552,208</dd></div>
+            <div><dt>收盤價</dt><dd>
+                <th:block th:if="${p.currentPrice != null}"><span th:text="${fmt.price(p.currentPrice)}">1,100.00</span>
+                    <small class="date" th:text="${#temporals.format(p.priceDate, 'MM-dd')}">11-12</small></th:block>
+                <span th:if="${p.currentPrice == null}" class="missing">未取得</span></dd></div>
+            <div><dt>未實現損益</dt><dd id="unrealized" th:class="${fmt.cls(p.unrealizedPnl)}"
+                th:text="${p.shares == 0 ? '—' : fmt.signedMoney(p.unrealizedPnl) + ' ' + fmt.signedPct(p.unrealizedReturnPct)}">+93,708 +9.36%</dd></div>
+            <div><dt>已實現損益</dt><dd id="realized" th:class="${fmt.cls(p.realizedPnl)}" th:text="${fmt.signedMoney(p.realizedPnl)}">+0</dd></div>
+        </dl>
+    </section>
+
+    <section class="card">
+        <h2>記一筆這檔的交易</h2>
+        <form th:replace="~{fragments :: tradeForm(${p.code}, ${back})}"></form>
+    </section>
+
+    <section class="card">
+        <h2>交易紀錄（新的在上面）</h2>
+        <div class="overflow">
+        <table class="trades">
+            <thead>
+            <tr><th>買賣</th><th>日期／股數／價格</th><th class="num">成交金額</th><th class="num">手續費</th><th class="num">證交稅</th>
+                <th class="num">已實現損益</th><th class="num">之後股數</th><th></th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="t : ${p.trades}" th:attr="data-trade=${t.id}">
+                <td th:class="${t.side.name() == 'BUY' ? 'side buy' : 'side sell'}" th:text="${t.side.name() == 'BUY' ? '買進' : '賣出'}">買進</td>
+                <td>
+                    <form method="post" th:action="@{/trades/{id}(id=${t.id})}" class="edit">
+                        <input type="hidden" name="version" th:value="${t.version}">
+                        <input type="hidden" name="back" th:value="${back}">
+                        <input name="date" type="date" th:value="${t.date}" th:max="${today}" aria-label="日期">
+                        <input name="shares" th:value="${t.shares}" aria-label="股數" inputmode="numeric">
+                        <input name="price" th:value="${t.price}" aria-label="價格" inputmode="decimal">
+                        <button type="submit">修改</button>
+                    </form>
+                    <small class="hint" th:if="${t.dateEstimated}">1.0 沒有記日期，這是記錄當天的日期，可以改成實際買進日</small>
+                </td>
+                <td class="num" th:text="${fmt.money(t.amount)}">1,000,000</td>
+                <td class="num" th:text="${fmt.money(t.fee)}">1,425</td>
+                <td class="num" th:text="${t.tax == 0 ? '—' : fmt.money(t.tax)}">—</td>
+                <td class="num" th:classappend="${fmt.cls(t.realizedPnl)}" th:text="${t.realizedPnl == null ? '' : fmt.signedMoney(t.realizedPnl)}"></td>
+                <td class="num" th:text="${fmt.shares(t.sharesAfter)}">1,000</td>
+                <td>
+                    <form method="post" th:action="@{/trades/{id}/delete(id=${t.id})}" class="del"
+                          onsubmit="return confirm('確定刪除這筆交易？');">
+                        <input type="hidden" name="version" th:value="${t.version}">
+                        <input type="hidden" name="back" th:value="${back}">
+                        <button type="submit" class="danger">刪除</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+        <p class="hint">成本用移動平均法：賣出時依當時的平均成本扣掉賣出部分的成本，平均成本不變。改日期或股數後，所有交易會依日期重算；會讓某一天賣超的修改不會存。</p>
+    </section>
+
+    <section class="card">
+        <form method="post" th:action="@{/holdings/{id}/delete(id=${p.id})}"
+              onsubmit="return confirm('確定刪除這檔的所有交易紀錄？刪除後無法復原。');">
+            <button type="submit" class="danger">刪除這檔的所有紀錄</button>
+        </form>
+    </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW" xmlns:th="http://www.thymeleaf.org">
+<body>
+<header th:fragment="header">
+    <h1><a href="/">持股記帳</a> <small class="ver">2.0</small></h1>
+    <p class="now">目前時間：<span id="now" th:text="${now}">2026-11-19 14:00:00</span>（<span th:text="${zone}">Asia/Taipei</span>）</p>
+    <p class="flash ok" th:if="${message}" th:text="${message}">已新增</p>
+    <p class="flash err" id="error" th:if="${error}" th:text="${error}">錯誤</p>
+</header>
+
+<!-- 記一筆交易。code 為 null 時可輸入代號；給了 code 就固定這檔 -->
+<form th:fragment="tradeForm(code, back)" method="post" action="/trades" class="add" onsubmit="this.querySelector('button').disabled=true">
+    <input type="hidden" name="token" th:value="${formToken}">
+    <input type="hidden" name="back" th:value="${back}">
+    <label th:if="${code == null}">股票代號 <input name="code" required placeholder="2330" th:value="${form?.code}"></label>
+    <input th:if="${code != null}" type="hidden" name="code" th:value="${code}">
+    <fieldset class="side">
+        <label><input type="radio" name="side" value="BUY" th:checked="${form == null or form.side != 'SELL'}"> 買進</label>
+        <label><input type="radio" name="side" value="SELL" th:checked="${form != null and form.side == 'SELL'}"> 賣出</label>
+    </fieldset>
+    <label>日期 <input name="date" type="date" required th:max="${today}" th:value="${form?.date ?: today}"></label>
+    <label>股數 <input name="shares" required inputmode="numeric" placeholder="1000" th:value="${form?.shares}"></label>
+    <label>價格（每股） <input name="price" required inputmode="decimal" placeholder="1000.00" th:value="${form?.price}"></label>
+    <button type="submit">記錄</button>
+</form>
+</body>
+</html>

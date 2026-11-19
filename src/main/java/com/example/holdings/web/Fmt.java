@@ -33,6 +33,10 @@ public final class Fmt {
         return v.signum() > 0 ? "+" + s : v.signum() < 0 ? "-" + s : s;
     }
 
+    public String shares(long v) {
+        return new DecimalFormat("#,##0").format(v);
+    }
+
     public String price(BigDecimal v) {
         return v == null ? "未取得" : new DecimalFormat("#,##0.00").format(v);
     }
