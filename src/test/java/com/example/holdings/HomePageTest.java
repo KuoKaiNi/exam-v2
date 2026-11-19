@@ -36,6 +36,20 @@ class HomePageTest extends IntegrationTestBase {
     }
 
     @Test
+    void listShowsPnlWithTaiwanColorsAndTotal() {
+        holdingService.create("2330", "1", "1000");   // 收 1100 → +93,708
+        holdingService.create("0050", "2", "150");    // 收 145.5 → -10,132
+
+        String html = rest.getForObject("/", String.class);
+
+        assertThat(html).contains("+93,708").contains("+9.36%").contains("-10,132").contains("-3.37%");
+        assertThat(html).containsPattern("class=\"num pnl up\">\\+93,708");
+        assertThat(html).containsPattern("class=\"num pnl down\">-10,132");
+        assertThat(html).contains("id=\"total-pnl\" class=\"up\">+83,576 元");
+        assertThat(html).contains("1,301,852").contains("1,391,000");
+    }
+
+    @Test
     void listStillRendersWhenOfficialSitesAreDown() {
         holdingService.create("2330", "1", "1000");
         quoteRepository.deleteAll(); // 模擬從沒查到過行情

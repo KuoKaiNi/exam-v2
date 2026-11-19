@@ -14,6 +14,20 @@
     <p class="flash ok" th:if="${message}" th:text="${message}">已新增</p>
     <p class="flash err" id="error" th:if="${error}" th:text="${error}">錯誤</p>
 
+    <section class="card summary" id="summary">
+        <h2>總計（假設現在用收盤價全部賣出）</h2>
+        <p class="total">
+            <span id="total-pnl" th:class="${fmt.cls(summary.pnl)}" th:text="${fmt.signedMoney(summary.pnl)} + ' 元'">+93,708 元</span>
+            <span id="total-pct" th:class="${fmt.cls(summary.pnl)}" th:text="${fmt.signedPct(summary.returnPct)}">+9.36%</span>
+        </p>
+        <dl>
+            <div><dt>總成本</dt><dd id="total-cost" th:text="${fmt.money(summary.totalCost)}">1,001,425</dd></div>
+            <div><dt>市值</dt><dd id="market-value" th:text="${fmt.money(summary.marketValue)}">1,100,000</dd></div>
+        </dl>
+        <p class="hint" th:if="${summary.quoteMissing > 0}"
+           th:text="|有 ${summary.quoteMissing} 筆未取得收盤價，沒有算進市值和盈虧（有算進總成本）。|">有 1 筆未取得收盤價</p>
+    </section>
+
     <section class="card">
         <h2>新增持股</h2>
         <form method="post" action="/holdings" class="add">
@@ -22,7 +36,7 @@
             <label>買進價 <input name="buyPrice" required inputmode="decimal" placeholder="1000.00" th:value="${form?.buyPrice}"></label>
             <button type="submit">新增</button>
         </form>
-        <p class="hint">1 張 = 1,000 股；張數 1～999；買進價最多兩位小數。</p>
+        <p class="hint">1 張 = 1,000 股；張數 1～999；買進價最多兩位小數。新增時會向證交所／櫃買中心確認代號，最多約 10 秒。</p>
     </section>
 
     <section class="card">
@@ -31,7 +45,11 @@
         <div class="overflow" th:unless="${#lists.isEmpty(holdings)}">
         <table class="holdings">
             <thead>
-            <tr><th>代號</th><th>名稱</th><th>市場</th><th class="num">收盤價</th><th>張數／買進價</th></tr>
+            <tr>
+                <th>代號</th><th>名稱</th><th>市場</th>
+                <th class="num">收盤價</th><th class="num">盈虧（元）</th><th class="num">收益率</th>
+                <th>張數／買進價</th>
+            </tr>
             </thead>
             <tbody>
             <tr th:each="h : ${holdings}" th:attr="data-code=${h.code}">
@@ -40,12 +58,14 @@
                 <td th:text="${h.market != null ? h.market.label : ''}">上市</td>
                 <td class="num price">
                     <th:block th:if="${h.currentPrice != null}">
-                        <span th:text="${#numbers.formatDecimal(h.currentPrice, 1, 'COMMA', 2, 'POINT')}">1,100.00</span>
+                        <span th:text="${fmt.price(h.currentPrice)}">1,100.00</span>
                         <small class="date" th:text="${#temporals.format(h.priceDate, 'MM-dd')}">11-12</small>
                     </th:block>
                     <span th:if="${h.currentPrice == null}" class="missing">未取得</span>
                 </td>
-                <td>
+                <td class="num pnl" th:classappend="${fmt.cls(h.pnl)}" th:text="${fmt.signedMoney(h.pnl)}">+93,708</td>
+                <td class="num pct" th:classappend="${fmt.cls(h.pnl)}" th:text="${fmt.signedPct(h.returnPct)}">+9.36%</td>
+                <td class="actions">
                     <form method="post" th:action="@{/holdings/{id}(id=${h.id})}" class="edit">
                         <input name="lots" th:value="${h.lots}" aria-label="張數" inputmode="numeric">
                         <input name="buyPrice" th:value="${h.buyPrice}" aria-label="買進價" inputmode="decimal">
@@ -60,7 +80,8 @@
             </tbody>
         </table>
         </div>
-        <p class="hint">收盤價是證交所／櫃買中心公布的最近一個交易日收盤價（右邊小字是日期），每天收盤公布後自動更新。</p>
+        <p class="hint">收盤價是證交所／櫃買中心公布的最近一個交易日收盤價（右邊小字是日期），每天收盤公布後自動更新。
+            盈虧已扣買賣手續費（0.1425%，最低 20 元）與證交稅（股票 0.3%、ETF 0.1%）。紅色是賺、綠色是虧。</p>
     </section>
 </main>
 </body>

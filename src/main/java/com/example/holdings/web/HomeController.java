@@ -40,7 +40,10 @@ public class HomeController {
         ZonedDateTime now = ZonedDateTime.now(clock);
         model.addAttribute("now", now.format(FORMAT));
         model.addAttribute("zone", now.getZone().getId());
-        model.addAttribute("holdings", queryService.list());
+        var holdings = queryService.list();
+        model.addAttribute("holdings", holdings);
+        model.addAttribute("summary", HoldingQueryService.summarize(holdings));
+        model.addAttribute("fmt", Fmt.INSTANCE);
         return "home";
     }
 

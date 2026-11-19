@@ -21,3 +21,13 @@ form.edit input { width: 90px; }
 .overflow { overflow-x: auto; }
 .missing { color: #999; }
 small.date { color: #888; margin-left: 4px; }
+.up { color: #d32f2f; }
+.down { color: #2e7d32; }
+.flat { color: #333; }
+.summary .total { font-size: 1.8rem; font-weight: bold; margin: 4px 0 8px; }
+.summary .total span + span { font-size: 1.1rem; margin-left: 8px; }
+.summary dl { display: flex; gap: 48px; margin: 0; }
+.summary dt { color: #777; font-size: .9rem; }
+.summary dd { margin: 0; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+td.pnl { font-weight: bold; }
+td.actions { white-space: nowrap; }
