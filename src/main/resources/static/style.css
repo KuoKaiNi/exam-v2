@@ -1,4 +1,21 @@
 body { font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f1f3f6; color: #222; margin: 0; }
-main { max-width: 960px; margin: 0 auto; padding: 16px; }
+main { max-width: 1000px; margin: 0 auto; padding: 16px; }
 h1 { margin: 8px 0; }
+h2 { font-size: 1.1rem; margin: 0 0 12px; }
 .now { color: #555; }
+.card { background: #fff; border-radius: 10px; padding: 16px; margin: 12px 0; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.flash { padding: 10px 14px; border-radius: 8px; }
+.flash.ok { background: #e8f4ea; }
+.flash.err { background: #fde8e8; color: #b00020; font-weight: bold; }
+form.add { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+form.add label { display: flex; flex-direction: column; font-size: .9rem; color: #555; }
+input { padding: 6px 8px; font-size: 1rem; border: 1px solid #ccc; border-radius: 6px; width: 110px; }
+button { padding: 7px 14px; font-size: .95rem; border-radius: 6px; border: 1px solid #888; background: #f7f7f7; cursor: pointer; }
+button.danger { color: #b00020; border-color: #e0a0a0; }
+.hint, .empty { color: #777; font-size: .9rem; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 8px 6px; border-bottom: 1px solid #eee; text-align: left; vertical-align: middle; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+form.edit, form.del { display: inline-flex; gap: 6px; }
+form.edit input { width: 90px; }
+.overflow { overflow-x: auto; }

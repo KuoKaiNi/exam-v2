@@ -10,6 +10,46 @@
 <main>
     <h1>持股記帳</h1>
     <p class="now">目前時間：<span id="now" th:text="${now}">2026-11-19 14:00:00</span>（<span th:text="${zone}">Asia/Taipei</span>）</p>
+
+    <p class="flash ok" th:if="${message}" th:text="${message}">已新增</p>
+    <p class="flash err" id="error" th:if="${error}" th:text="${error}">錯誤</p>
+
+    <section class="card">
+        <h2>新增持股</h2>
+        <form method="post" action="/holdings" class="add">
+            <label>股票代號 <input name="code" required placeholder="2330" th:value="${form?.code}"></label>
+            <label>張數 <input name="lots" required inputmode="numeric" placeholder="1" th:value="${form?.lots}"></label>
+            <label>買進價 <input name="buyPrice" required inputmode="decimal" placeholder="1000.00" th:value="${form?.buyPrice}"></label>
+            <button type="submit">新增</button>
+        </form>
+        <p class="hint">1 張 = 1,000 股；張數 1～999；買進價最多兩位小數。</p>
+    </section>
+
+    <section class="card">
+        <h2>持股清單</h2>
+        <p th:if="${#lists.isEmpty(holdings)}" class="empty">還沒有持股，從上面新增一筆。</p>
+        <table th:unless="${#lists.isEmpty(holdings)}" class="holdings">
+            <thead>
+            <tr><th>代號</th><th>張數</th><th>買進價</th><th></th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="h : ${holdings}" th:attr="data-code=${h.code}">
+                <td class="code" th:text="${h.code}">2330</td>
+                <td colspan="3">
+                    <form method="post" th:action="@{/holdings/{id}(id=${h.id})}" class="edit">
+                        <input name="lots" th:value="${h.lots}" aria-label="張數" inputmode="numeric">
+                        <input name="buyPrice" th:value="${h.buyPrice}" aria-label="買進價" inputmode="decimal">
+                        <button type="submit">修改</button>
+                    </form>
+                    <form method="post" th:action="@{/holdings/{id}/delete(id=${h.id})}" class="del"
+                          onsubmit="return confirm('確定刪除這筆持股？');">
+                        <button type="submit" class="danger">刪除</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
 </main>
 </body>
 </html>
