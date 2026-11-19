@@ -21,13 +21,17 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(HoldingException.class)
     public ResponseEntity<ApiError> holding(HoldingException e) {
-        HttpStatus status = switch (e.getKind()) {
+        return error(statusOf(e.getKind()), e.getKind().name(), e.getMessage());
+    }
+
+    public static HttpStatus statusOf(HoldingException.Kind kind) {
+        return switch (kind) {
             case VALIDATION_ERROR -> HttpStatus.BAD_REQUEST;
             case NOT_FOUND, STOCK_NOT_FOUND -> HttpStatus.NOT_FOUND;
-            case DUPLICATE_CODE -> HttpStatus.CONFLICT;
+            case DUPLICATE_CODE, INSUFFICIENT_SHARES, VERSION_CONFLICT, HAS_TRADE_HISTORY, REQUEST_IN_PROGRESS -> HttpStatus.CONFLICT;
+            case IDEMPOTENCY_KEY_REUSED -> HttpStatus.UNPROCESSABLE_ENTITY;
             case QUOTE_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
         };
-        return error(status, e.getKind().name(), e.getMessage());
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)

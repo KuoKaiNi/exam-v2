@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 
-import com.example.holdings.holding.HoldingService;
+import com.example.holdings.holding.PortfolioService;
 import com.example.holdings.support.IntegrationTestBase;
 
 class HomePageTest extends IntegrationTestBase {
@@ -14,7 +14,7 @@ class HomePageTest extends IntegrationTestBase {
     @Autowired
     TestRestTemplate rest;
     @Autowired
-    HoldingService holdingService;
+    PortfolioService holdingService;
 
     @Test
     void homeShowsTitleAndTaipeiTime() {
@@ -24,8 +24,8 @@ class HomePageTest extends IntegrationTestBase {
 
     @Test
     void listShowsNameAndCloseFromCache() {
-        holdingService.create("2330", "1", "1000");
-        holdingService.create("6488", "2", "600");
+        holdingService.v1Create("2330", "1", "1000");
+        holdingService.v1Create("6488", "2", "600");
         int before = FAKE.requests().size();
 
         String html = rest.getForObject("/", String.class);
@@ -37,8 +37,8 @@ class HomePageTest extends IntegrationTestBase {
 
     @Test
     void listShowsPnlWithTaiwanColorsAndTotal() {
-        holdingService.create("2330", "1", "1000");   // 收 1100 → +93,708
-        holdingService.create("0050", "2", "150");    // 收 145.5 → -10,132
+        holdingService.v1Create("2330", "1", "1000");   // 收 1100 → +93,708
+        holdingService.v1Create("0050", "2", "150");    // 收 145.5 → -10,132
 
         String html = rest.getForObject("/", String.class);
 
@@ -51,7 +51,7 @@ class HomePageTest extends IntegrationTestBase {
 
     @Test
     void listStillRendersWhenOfficialSitesAreDown() {
-        holdingService.create("2330", "1", "1000");
+        holdingService.v1Create("2330", "1", "1000");
         quoteRepository.deleteAll(); // 模擬從沒查到過行情
         FAKE.twseDown.set(true);
         FAKE.tpexDown.set(true);

@@ -17,8 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.holdings.holding.Holding;
 import com.example.holdings.holding.HoldingException;
 import com.example.holdings.holding.HoldingInput;
-import com.example.holdings.holding.HoldingQueryService;
-import com.example.holdings.holding.HoldingService;
+import com.example.holdings.holding.PortfolioQueryService;
+import com.example.holdings.holding.PortfolioService;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
@@ -30,62 +30,63 @@ public class HoldingApiController {
 
     static final String JSON_UTF8 = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8";
 
-    private final HoldingService holdingService;
-    private final HoldingQueryService queryService;
+    private final PortfolioService portfolio;
+    private final PortfolioQueryService query;
 
-    public HoldingApiController(HoldingService holdingService, HoldingQueryService queryService) {
-        this.holdingService = holdingService;
-        this.queryService = queryService;
+    public HoldingApiController(PortfolioService portfolio, PortfolioQueryService query) {
+        this.portfolio = portfolio;
+        this.query = query;
     }
 
+    /** 2.0 之後：只列還有股數的部位（全部賣光的對 1.0 等於不存在）。 */
     @GetMapping("/holdings")
     public List<HoldingDto> list() {
-        return queryService.list().stream().map(HoldingDto::from).toList();
+        return query.positions(false).stream().map(HoldingDto::from).toList();
     }
 
     @GetMapping("/holdings/{id}")
     public HoldingDto get(@PathVariable String id) {
-        return HoldingDto.from(queryService.get(parseId(id)));
+        return HoldingDto.from(query.position(portfolio.v1Find(parseId(id)).getId()));
     }
 
     @PostMapping("/holdings")
     public ResponseEntity<HoldingDto> create(@RequestBody(required = false) String body) {
         JsonNode json = RequestBodies.parse(body);
-        Holding h = holdingService.create(
+        Holding h = portfolio.v1Create(
                 RequestBodies.field(json, "code"),
                 RequestBodies.field(json, "lots"),
                 RequestBodies.field(json, "buy_price"));
-        return ResponseEntity.status(HttpStatus.CREATED).body(HoldingDto.from(queryService.toView(h)));
+        return ResponseEntity.status(HttpStatus.CREATED).body(HoldingDto.from(query.position(h.getId())));
     }
 
     @PutMapping("/holdings/{id}")
     public HoldingDto update(@PathVariable String id, @RequestBody(required = false) String body) {
         long holdingId = parseId(id);
-        Holding existing = holdingService.get(holdingId); // 先確認存在：不存在回 404
+        Holding existing = portfolio.v1Find(holdingId); // 先確認存在：不存在回 404
         JsonNode json = RequestBodies.parse(body);
         String code = RequestBodies.field(json, "code");
         if (code != null && !code.isBlank() && !HoldingInput.parseCode(code).equals(existing.getCode())) {
             throw HoldingException.validation("股票代號不能修改");
         }
-        Holding h = holdingService.update(holdingId,
+        Holding h = portfolio.v1Update(holdingId,
                 RequestBodies.field(json, "lots"),
                 RequestBodies.field(json, "buy_price"));
-        return HoldingDto.from(queryService.toView(h));
+        return HoldingDto.from(query.position(h.getId()));
     }
 
     @DeleteMapping("/holdings/{id}")
     public ResponseEntity<Void> delete(@PathVariable String id) {
-        holdingService.delete(parseId(id));
+        portfolio.v1Delete(parseId(id));
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/summary")
     public SummaryDto summary() {
-        return SummaryDto.from(queryService.summary());
+        return SummaryDto.from(query.v1Summary());
     }
 
     /** id 不是數字（例如 /holdings/abc）就當作找不到。 */
-    private static long parseId(String raw) {
+    static long parseId(String raw) {
         try {
             return Long.parseLong(raw.trim());
         } catch (NumberFormatException e) {

@@ -14,8 +14,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.example.holdings.holding.Holding;
 import com.example.holdings.holding.HoldingException;
-import com.example.holdings.holding.HoldingQueryService;
-import com.example.holdings.holding.HoldingService;
+import com.example.holdings.holding.PortfolioQueryService;
+import com.example.holdings.holding.PortfolioService;
 
 /**
  * 首頁＝持股清單。表單送出後一律轉回首頁（POST → redirect → GET），錯誤訊息用 flash 帶回。
@@ -26,10 +26,10 @@ public class HomeController {
     private static final DateTimeFormatter FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final Clock clock;
-    private final HoldingService holdingService;
-    private final HoldingQueryService queryService;
+    private final PortfolioService holdingService;
+    private final PortfolioQueryService queryService;
 
-    public HomeController(Clock clock, HoldingService holdingService, HoldingQueryService queryService) {
+    public HomeController(Clock clock, PortfolioService holdingService, PortfolioQueryService queryService) {
         this.clock = clock;
         this.holdingService = holdingService;
         this.queryService = queryService;
@@ -40,9 +40,9 @@ public class HomeController {
         ZonedDateTime now = ZonedDateTime.now(clock);
         model.addAttribute("now", now.format(FORMAT));
         model.addAttribute("zone", now.getZone().getId());
-        var holdings = queryService.list();
+        var holdings = queryService.positions(false);
         model.addAttribute("holdings", holdings);
-        model.addAttribute("summary", HoldingQueryService.summarize(holdings));
+        model.addAttribute("summary", PortfolioQueryService.summarize(holdings));
         model.addAttribute("fmt", Fmt.INSTANCE);
         return "home";
     }
@@ -53,7 +53,7 @@ public class HomeController {
                       @RequestParam(required = false) String buyPrice,
                       RedirectAttributes redirect) {
         try {
-            Holding h = holdingService.create(code, lots, buyPrice);
+            Holding h = holdingService.v1Create(code, lots, buyPrice);
             redirect.addFlashAttribute("message", "已新增 " + h.getCode());
         } catch (HoldingException e) {
             redirect.addFlashAttribute("error", e.getMessage());
@@ -68,7 +68,7 @@ public class HomeController {
                          @RequestParam(required = false) String buyPrice,
                          RedirectAttributes redirect) {
         try {
-            Holding h = holdingService.update(id, lots, buyPrice);
+            Holding h = holdingService.v1Update(id, lots, buyPrice);
             redirect.addFlashAttribute("message", "已修改 " + h.getCode());
         } catch (HoldingException e) {
             redirect.addFlashAttribute("error", e.getMessage());
@@ -79,7 +79,7 @@ public class HomeController {
     @PostMapping("/holdings/{id}/delete")
     public String delete(@PathVariable long id, RedirectAttributes redirect) {
         try {
-            holdingService.delete(id);
+            holdingService.v1Delete(id);
             redirect.addFlashAttribute("message", "已刪除");
         } catch (HoldingException e) {
             redirect.addFlashAttribute("error", e.getMessage());

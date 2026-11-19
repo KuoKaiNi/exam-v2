@@ -90,4 +90,76 @@ public final class HoldingInput {
 
     public record Values(int lots, BigDecimal buyPrice) {
     }
+
+    public static final long MAX_SHARES = 10_000_000L;
+    private static final java.time.LocalDate EARLIEST = java.time.LocalDate.of(1962, 2, 9); // 證交所開業
+
+    /** 2.0：股數（股），1～10,000,000 的整數，可以是零股。 */
+    public static long parseShares(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw HoldingException.validation("股數必填");
+        }
+        String s = raw.trim().replace(",", "");
+        if (!INTEGER.matcher(s).matches() || s.length() > 9) {
+            throw HoldingException.validation("股數要是 1～10,000,000 的整數，收到 " + raw.trim());
+        }
+        long shares = Long.parseLong(s);
+        if (shares < 1 || shares > MAX_SHARES) {
+            throw HoldingException.validation("股數要是 1～10,000,000 的整數，收到 " + raw.trim());
+        }
+        return shares;
+    }
+
+    /** 2.0：成交價，規則同 1.0 的買進價（大於 0、最多兩位小數）。 */
+    public static BigDecimal parseTradePrice(String raw) {
+        try {
+            return parsePrice(raw);
+        } catch (HoldingException e) {
+            throw HoldingException.validation(e.getMessage().replace("買進價", "價格"));
+        }
+    }
+
+    /** 2.0：交易日期 YYYY-MM-DD（西元），不能晚於今天（台北）。 */
+    public static java.time.LocalDate parseDate(String raw, java.time.LocalDate today) {
+        if (raw == null || raw.isBlank()) {
+            throw HoldingException.validation("日期必填（格式 YYYY-MM-DD）");
+        }
+        java.time.LocalDate d;
+        try {
+            d = java.time.LocalDate.parse(raw.trim());
+        } catch (java.time.format.DateTimeParseException e) {
+            throw HoldingException.validation("日期格式要是 YYYY-MM-DD（西元年），收到 " + raw.trim());
+        }
+        if (d.isAfter(today)) {
+            throw HoldingException.validation("日期不能晚於今天（" + today + "）");
+        }
+        if (d.isBefore(EARLIEST)) {
+            throw HoldingException.validation("日期太早：" + d);
+        }
+        return d;
+    }
+
+    /** 2.0：買賣方向 BUY／SELL（也接受「買進」「賣出」）。 */
+    public static com.example.holdings.pnl.PositionCalculator.Side parseSide(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw HoldingException.validation("買賣方向必填（BUY 或 SELL）");
+        }
+        return switch (raw.trim().toUpperCase(Locale.ROOT)) {
+            case "BUY", "買進", "買" -> com.example.holdings.pnl.PositionCalculator.Side.BUY;
+            case "SELL", "賣出", "賣" -> com.example.holdings.pnl.PositionCalculator.Side.SELL;
+            default -> throw HoldingException.validation("買賣方向要是 BUY 或 SELL，收到 " + raw.trim());
+        };
+    }
+
+    /** version 欄位：可省略（null）；有給就要是非負整數。 */
+    public static Long parseVersion(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String s = raw.trim();
+        if (!INTEGER.matcher(s).matches() || s.length() > 18) {
+            throw HoldingException.validation("version 要是整數，收到 " + s);
+        }
+        return Long.parseLong(s);
+    }
 }

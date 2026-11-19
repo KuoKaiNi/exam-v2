@@ -14,6 +14,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import com.example.holdings.holding.HoldingRepository;
+import com.example.holdings.holding.TradeRepository;
 import com.example.holdings.quote.StockQuoteRepository;
 
 /**
@@ -37,10 +38,13 @@ public abstract class IntegrationTestBase {
     protected HoldingRepository holdingRepository;
     @Autowired
     protected StockQuoteRepository quoteRepository;
+    @Autowired
+    protected TradeRepository tradeRepository;
 
     @BeforeEach
     void resetState() {
-        holdingRepository.deleteAll();
+        tradeRepository.deleteAllInBatch();
+        holdingRepository.deleteAllInBatch();
         quoteRepository.deleteAll();
         FAKE.reset();
         CLOCK.set("2026-11-12T15:00");

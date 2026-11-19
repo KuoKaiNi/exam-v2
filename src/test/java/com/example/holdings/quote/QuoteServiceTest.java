@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.example.holdings.holding.HoldingException;
-import com.example.holdings.holding.HoldingService;
+import com.example.holdings.holding.PortfolioService;
 import com.example.holdings.support.IntegrationTestBase;
 
 class QuoteServiceTest extends IntegrationTestBase {
@@ -20,7 +20,7 @@ class QuoteServiceTest extends IntegrationTestBase {
     @Autowired
     QuoteRefresher refresher;
     @Autowired
-    HoldingService holdingService;
+    PortfolioService holdingService;
 
     @BeforeEach
     void clearCooldowns() {
@@ -92,7 +92,7 @@ class QuoteServiceTest extends IntegrationTestBase {
 
     @Test
     void refresherPicksUpNewCloseAfterPublishWithoutRestart() {
-        holdingService.create("2330", "1", "1000");
+        holdingService.v1Create("2330", "1", "1000");
         int calls = FAKE.requests().size();
 
         // 同一天再跑：已是最新，不查官方
@@ -121,7 +121,7 @@ class QuoteServiceTest extends IntegrationTestBase {
 
     @Test
     void holidayStopsRetryingAfterCutoff() {
-        holdingService.create("2330", "1", "1000");
+        holdingService.v1Create("2330", "1", "1000");
         CLOCK.set("2026-11-13T18:05"); // 假設 11/13 休市，官方沒有這天資料
         refresher.runOnce();
         int calls = FAKE.requests().size();
@@ -132,7 +132,7 @@ class QuoteServiceTest extends IntegrationTestBase {
 
     @Test
     void refreshErrorKeepsOldPriceAndBacksOff() {
-        holdingService.create("2330", "1", "1000");
+        holdingService.v1Create("2330", "1", "1000");
         FAKE.twseDown.set(true);
         CLOCK.set("2026-11-13T14:00");
         refresher.runOnce();

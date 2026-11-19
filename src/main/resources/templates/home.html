@@ -17,8 +17,8 @@
     <section class="card summary" id="summary">
         <h2>總計（假設現在用收盤價全部賣出）</h2>
         <p class="total">
-            <span id="total-pnl" th:class="${fmt.cls(summary.pnl)}" th:text="${fmt.signedMoney(summary.pnl)} + ' 元'">+93,708 元</span>
-            <span id="total-pct" th:class="${fmt.cls(summary.pnl)}" th:text="${fmt.signedPct(summary.returnPct)}">+9.36%</span>
+            <span id="total-pnl" th:class="${fmt.cls(summary.unrealizedPnl)}" th:text="${fmt.signedMoney(summary.unrealizedPnl)} + ' 元'">+93,708 元</span>
+            <span id="total-pct" th:class="${fmt.cls(summary.unrealizedPnl)}" th:text="${fmt.signedPct(summary.unrealizedReturnPct)}">+9.36%</span>
         </p>
         <dl>
             <div><dt>總成本</dt><dd id="total-cost" th:text="${fmt.money(summary.totalCost)}">1,001,425</dd></div>
@@ -63,12 +63,12 @@
                     </th:block>
                     <span th:if="${h.currentPrice == null}" class="missing">未取得</span>
                 </td>
-                <td class="num pnl" th:classappend="${fmt.cls(h.pnl)}" th:text="${fmt.signedMoney(h.pnl)}">+93,708</td>
-                <td class="num pct" th:classappend="${fmt.cls(h.pnl)}" th:text="${fmt.signedPct(h.returnPct)}">+9.36%</td>
+                <td class="num pnl" th:classappend="${fmt.cls(h.unrealizedPnl)}" th:text="${fmt.signedMoney(h.unrealizedPnl)}">+93,708</td>
+                <td class="num pct" th:classappend="${fmt.cls(h.unrealizedPnl)}" th:text="${fmt.signedPct(h.unrealizedReturnPct)}">+9.36%</td>
                 <td class="actions">
                     <form method="post" th:action="@{/holdings/{id}(id=${h.id})}" class="edit">
-                        <input name="lots" th:value="${h.lots}" aria-label="張數" inputmode="numeric">
-                        <input name="buyPrice" th:value="${h.buyPrice}" aria-label="買進價" inputmode="decimal">
+                        <input name="lots" th:value="${h.shares / 1000}" aria-label="張數" inputmode="numeric">
+                        <input name="buyPrice" th:value="${h.avgPrice}" aria-label="買進價" inputmode="decimal">
                         <button type="submit">修改</button>
                     </form>
                     <form method="post" th:action="@{/holdings/{id}/delete(id=${h.id})}" class="del"
