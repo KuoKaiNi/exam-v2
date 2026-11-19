@@ -77,6 +77,13 @@ class V2ApiTest extends IntegrationTestBase {
         assertThat(detail.path("total_cost").asLong()).isEqualTo(1_241_766); // 1,552,208 − 310,441.6
         assertThat(detail.path("unrealized_pnl").isIntegralNumber()).isTrue();
         assertThat(detail.path("realized_pnl").asLong()).isEqualTo(s.path("trade").path("realized_pnl").asLong());
+        // API.md 第 3、5 節範例的數字
+        assertThat(s.path("trade").path("fee").asLong()).isEqualTo(465);
+        assertThat(s.path("trade").path("tax").asLong()).isEqualTo(981);
+        assertThat(s.path("trade").path("realized_pnl").asLong()).isEqualTo(15_112);
+        assertThat(detail.path("market_value").asLong()).isEqualTo(1_320_000);
+        assertThat(detail.path("unrealized_pnl").asLong()).isEqualTo(72_393);
+        assertThat(detail.path("unrealized_return_pct").decimalValue()).isEqualByComparingTo("5.83");
 
         JsonNode list = body(call(HttpMethod.GET, "/api/v2/holdings", null, null));
         assertThat(list.size()).isEqualTo(1);

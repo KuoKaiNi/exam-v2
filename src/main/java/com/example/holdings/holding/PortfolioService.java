@@ -190,7 +190,11 @@ public class PortfolioService {
         try {
             return PositionCalculator.compute(h.getCode(), list.stream().map(Trade::toInput).toList(), taxRules);
         } catch (OversellException e) {
-            throw new HoldingException(HoldingException.Kind.INSUFFICIENT_SHARES, h.getCode() + "：" + e.getMessage());
+            String hint = list.stream().anyMatch(t -> t.isDateEstimated() && t.getSide() == Side.BUY
+                    && t.getTradeDate().isAfter(e.getDate()))
+                    ? "。這檔有從 1.0 轉入的買進，日期是記錄當天、不是實際買進日，請先把那筆的日期改成實際買進日"
+                    : "";
+            throw new HoldingException(HoldingException.Kind.INSUFFICIENT_SHARES, h.getCode() + "：" + e.getMessage() + hint);
         }
     }
 

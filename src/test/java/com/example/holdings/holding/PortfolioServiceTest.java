@@ -163,6 +163,14 @@ class PortfolioServiceTest extends IntegrationTestBase {
     }
 
     @Test
+    void sellBeforeEstimatedV1BuyDateExplainsWhy() {
+        service.v1Create("2330", "1", "1000"); // 日期記成今天 2026-11-12，標記為推估
+        assertThatThrownBy(() -> service.addTrade("2330", "SELL", "2026-11-10", "500", "1100"))
+                .satisfies(e -> assertThat(kind(e)).isEqualTo(HoldingException.Kind.INSUFFICIENT_SHARES))
+                .hasMessageContaining("實際買進日");
+    }
+
+    @Test
     void v1UpdateOnlyWhenSingleBuy() {
         Holding h = service.v1Create("2330", "1", "1000");
         service.v1Update(h.getId(), "3", "990");

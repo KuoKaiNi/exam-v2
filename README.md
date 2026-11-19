@@ -2,6 +2,15 @@
 
 記下自己買了哪些台股，用證交所／櫃買中心的官方收盤價，算出「如果現在全部賣掉，淨賺或淨虧多少」。
 
+**2.0**：股數用「股」記（可記零股）、同一檔可以分多次買進、可以賣出一部分（算已實現損益）。
+
+| 文件 | 內容 |
+|---|---|
+| [API.md](API.md) | App 2.0 用的 `/api/v2`，以及 App 1.0 的 `/api/v1` 在 2.0 的行為 |
+| [UPGRADE.md](UPGRADE.md) | 從 1.0 升級到 2.0 的步驟、資料庫變動、上線後注意事項 |
+| [ISSUES.md](ISSUES.md) | 客服轉來三則回報的查證與處理 |
+| [REVIEW.md](REVIEW.md) | 回顧 |
+
 ## 需要先裝什麼
 
 - **Java 17 以上**（JDK，不是只有 JRE）。用 `java -version` 確認。
@@ -37,12 +46,15 @@ http://localhost:8085/
 ## 資料庫
 
 H2 檔案模式，資料存在 `data/holdings.mv.db`（第一次啟動自動建立）。資料表由 Flyway 建立，migration 檔在 `src/main/resources/db/migration/`。
-要清空資料：停掉伺服器後刪除 `data/` 資料夾。
+要清空資料：停掉伺服器後刪除 `data/` 資料夾。要換位置：環境變數 `DB_URL`，例如 `DB_URL="jdbc:h2:file:/var/lib/holdings/holdings;LOCK_TIMEOUT=10000"`（請保留 `LOCK_TIMEOUT`，見 UPGRADE.md）。
+
+從 1.0 升級：見 [UPGRADE.md](UPGRADE.md)。2.0 第一次啟動會自動轉換 1.0 的資料。
 
 ## 畫面
 
-首頁 http://localhost:8085/ 就是持股清單：上方新增，每一列可直接改張數、買進價後按「修改」，或按「刪除」。
-同一個股票代號只能有一筆，重複新增會顯示「2330 已在持股中」，資料不儲存。
+- 首頁 http://localhost:8085/ ：總計（未實現、已實現損益）、「記一筆交易」（買進或賣出、日期、股數、價格）、持股清單（股數、平均成本、收盤價、未實現與已實現損益）、已全部賣出的股票。
+- 點代號進到這檔的明細頁：每一筆買賣的成交金額、手續費、證交稅、已實現損益；可以直接改日期／股數／價格或刪除。
+- 賣出不能超過當時手上的股數；新代號第一次買進會向官方確認代號存在。
 
 ## 跑測試
 
@@ -90,22 +102,29 @@ TWSE_BASE_URL=http://localhost:9000 TPEX_BASE_URL=http://localhost:9000 ./mvnw s
 
 ## 盈虧怎麼算
 
-「假設現在用收盤價全部賣出，淨賺多少」，程式在 `src/main/java/com/example/holdings/pnl/PnlCalculator.java`：
+程式在 `src/main/java/com/example/holdings/pnl/`（`PnlCalculator`、`PositionCalculator`、`TaxRules`）：
 
 | 項目 | 規則 |
 |---|---|
-| 手續費 | 成交金額 × 0.1425%，無條件捨去到元，每筆最低 20 元；買進、賣出各收一次 |
-| 證交稅 | 只有賣出收。一般股票 0.3%，ETF（代號 00 開頭）0.1%；無條件捨去到元 |
-| 盈虧 | 賣出金額 − 賣出手續費 − 證交稅 − 買進金額 − 買進手續費 |
-| 收益率 | 盈虧 ÷（買進金額 ＋ 買進手續費）× 100，四捨五入到小數第二位 |
+| 手續費 | 每筆交易：成交金額 × 0.1425%，無條件捨去到元，每筆最低 20 元 |
+| 證交稅 | 只有賣出收，無條件捨去到元。一般股票 0.3%，ETF（代號 00 開頭）0.1%，債券 ETF（00 開頭、B 結尾）2026-12-31 以前賣出免徵（ISSUES.md 回報二） |
+| 平均成本 | 移動平均法，含買進手續費 |
+| 已實現損益 | 每筆賣出：成交金額 − 手續費 − 證交稅 − 賣出部分的成本 |
+| 未實現損益 | 假設現在用收盤價賣出剩下的股數：賣出金額 − 賣出手續費 − 證交稅 − 剩餘成本 |
+| 收益率 | 未實現損益 ÷ 剩餘成本 × 100，四捨五入到小數第二位 |
 
-清單每一筆顯示盈虧與收益率，最上面是總計。紅色是賺、綠色是虧。
-未取得收盤價的持股不算進市值和盈虧，但算進總成本，總計下方會註明筆數。
+只有一筆買進時，跟 1.0 的公式完全一樣。詳細例子見 [API.md](API.md) 第 5 節。紅色是賺、綠色是虧。
+未取得收盤價的持股不算進市值和未實現損益，但算進總成本，總計下方會註明筆數。
 
-單元測試在 `src/test/java/com/example/holdings/pnl/PnlCalculatorTest.java`，涵蓋題目的三個例子（一般股票、ETF、手續費低於 20 元）。
+單元測試：`PnlCalculatorTest`（1.0 題目的三個例子）、`PositionCalculatorTest`（分次買進、部分賣出、零股、超賣）、`TaxRulesTest`（債券 ETF 停徵）。
 所有測試都不連證交所或櫃買中心：需要行情的整合測試用測試程式自己啟動的本機假伺服器。
 
-## 給手機 App 用的 API（App 1.0）
+## 給手機 App 用的 API
+
+- **App 2.0**：`/api/v2`，規格見 [API.md](API.md)。寫入要帶 `Idempotency-Key`。
+- **App 1.0**：`/api/v1`，下面這節；2.0 之後欄位與狀態碼不變，對照方式見 API.md 第 7 節。
+
+### App 1.0（`/api/v1`）
 
 完全照《App 1.0 API 規格》實作，路徑開頭 `/api/v1`，回應 JSON（UTF-8），欄位小寫加底線。
 
@@ -121,6 +140,7 @@ TWSE_BASE_URL=http://localhost:9000 TPEX_BASE_URL=http://localhost:9000 ./mvnw s
 錯誤一律是 `{"error":{"code":"...","message":"..."}}`。規格以外的情況：
 - 新增時官方網站連不上、無法確認代號是否存在：503 `QUOTE_UNAVAILABLE`（不儲存）。
 - PUT 帶了不同的 `code`：400 `VALIDATION_ERROR`（代號不能改）。
+- 2.0 之後：PUT 一檔有多筆買賣紀錄的股票：409 `HAS_TRADE_HISTORY`（資料不動）。
 - `/api/` 底下不存在的路徑：404 `NOT_FOUND`；未預期的錯誤：500 `INTERNAL_ERROR`。
 
 範例：
@@ -134,4 +154,4 @@ curl localhost:8085/api/v1/summary
 ### 用 App 1.0 連線
 
 Android 模擬器裡「設定」填 `http://10.0.2.2:8085`；實體手機填電腦的區網 IP，例如 `http://192.168.1.20:8085`。
-App 1.0 連到本伺服器的清單畫面：`screenshots/v1-app1-list.png`。
+App 1.0 連到本伺服器的清單畫面：`screenshots/v1-app1-list.png`（1.0 伺服器）、`screenshots/v2-app1-list.png`（用 1.0 的資料庫升級後的 2.0 伺服器）。
