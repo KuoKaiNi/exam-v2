@@ -58,8 +58,31 @@ public final class PnlCalculator {
         return code != null && code.startsWith("00");
     }
 
-    static BigDecimal fee(BigDecimal tradeAmount) {
+    /** 手續費：成交金額 × 0.1425%，無條件捨去到元，每筆最低 20 元。 */
+    public static BigDecimal fee(BigDecimal tradeAmount) {
         return floor(tradeAmount.multiply(FEE_RATE)).max(MIN_FEE);
+    }
+
+    /** 證交稅：成交金額 × 稅率（依代號與賣出日期），無條件捨去到元。 */
+    public static BigDecimal tax(String code, BigDecimal sellAmount, java.time.LocalDate sellDate, TaxRules rules) {
+        return floor(sellAmount.multiply(rules.rate(code, sellDate)));
+    }
+
+    /**
+     * 未實現損益：假設在 sellDate 用收盤價把剩下的 shares 股全部賣出。
+     *
+     * @param cost 剩餘成本（含買進手續費）
+     */
+    public static Result unrealized(String code, long shares, BigDecimal cost, BigDecimal closePrice,
+                                    java.time.LocalDate sellDate, TaxRules rules) {
+        BigDecimal sellAmount = closePrice.multiply(BigDecimal.valueOf(shares));
+        BigDecimal pnl = sellAmount.subtract(fee(sellAmount)).subtract(tax(code, sellAmount, sellDate, rules)).subtract(cost);
+        return new Result(toYuan(cost), toYuan(sellAmount), toYuan(pnl), returnPct(pnl, cost));
+    }
+
+    /** 金額四捨五入到元。 */
+    public static long toYuan(BigDecimal v) {
+        return v.setScale(0, RoundingMode.HALF_UP).longValueExact();
     }
 
     private static BigDecimal amount(int lots, BigDecimal price) {
